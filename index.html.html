@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Business Academy — by Setana Ahmed</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body,#root{height:100%}
+    body{font-family:'DM Sans',sans-serif;background:#070B14;color:#F0F4FF;-webkit-font-smoothing:antialiased}
+    ::-webkit-scrollbar{width:4px}
+    ::-webkit-scrollbar-thumb{background:#4F8EF7;border-radius:4px}
+    input::placeholder,textarea::placeholder{color:rgba(139,156,200,0.4)!important}
+    select option{background:#0C1220}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+    .fade-up{animation:fadeUp 0.45s ease both}
+    button{cursor:pointer;font-family:'DM Sans',sans-serif}
+    a{text-decoration:none;color:inherit}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+const { useState, useEffect, useCallback } = React;
+
+// ── ACCESS CONTROL ────────────────────────────────────────
+// Add a new code below for each student who pays.
+// To revoke: delete their code and re-upload this file.
+const VALID_CODES = [
+  "SETANA2025",    // your master access
+  "STUDENT-001",
+  "STUDENT-002",
+  "STUDENT-003",
+  "STUDENT-004",
+  "STUDENT-005",
+  // add more: "SARAH-DXB", "AHMED-ABU", etc.
+];
+
+// ── DESIGN TOKENS ─────────────────────────────────────────
+const C={bg:"#070B14",bgCard:"#0C1220",border:"rgba(255,255,255,0.08)",borderMid:"rgba(255,255,255,0.13)",text:"#F0F4FF",textSub:"#8B9CC8",textMuted:"#4A5578",textDim:"#2D3756",blue:"#4F8EF7",teal:"#2DD4BF",purple:"#A78BFA",amber:"#FCD34D",coral:"#FB7185",green:"#34D399",indigo:"#818CF8",grad1:"linear-gradient(135deg,#4F8EF7,#A78BFA)",grad2:"linear-gradient(135deg,#2DD4BF,#4F8EF7)",gradAmber:"linear-gradient(135deg,#FCD34D,#FB923C)",gradText:"linear-gradient(135deg,#F0F4FF,#A78BFA)",gradText2:"linear-gradient(135deg,#4F8EF7,#2DD4BF)"};
+const SORA="'Sora',sans-serif",SANS="'DM Sans',sans-serif";
+
+// ── SHARED COMPONENTS ─────────────────────────────────────
+const Card=({children,style:s={},accent})=>(<div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:16,padding:20,position:"relative",overflow:"hidden",...(accent?{borderTop:`2px solid ${accent}`}:{}),...s}}>{accent&&<div style={{position:"absolute",top:0,left:0,right:0,height:1,background:`linear-gradient(90deg,transparent,${accent}55,transparent)`}}/>}{children}</div>);
+
+const Btn=({children,onClick,variant="primary",size="md",disabled,style:s={}})=>{
+  const pad={sm:"6px 14px",md:"10px 22px",lg:"13px 30px"},fz={sm:12,md:13,lg:15};
+  const vars={primary:{background:C.grad1,color:"#fff",boxShadow:"0 4px 20px rgba(79,142,247,0.35)"},ghost:{background:"rgba(255,255,255,0.06)",color:C.text,border:`1px solid ${C.border}`},subtle:{background:"rgba(255,255,255,0.04)",color:C.textSub,border:`1px solid ${C.border}`},teal:{background:C.grad2,color:"#fff"},amber:{background:C.gradAmber,color:"#111",fontWeight:800}};
+  return(<button onClick={onClick} disabled={disabled} style={{display:"inline-flex",alignItems:"center",gap:7,borderRadius:12,fontWeight:700,fontFamily:SANS,border:"none",transition:"all .18s",whiteSpace:"nowrap",opacity:disabled?.45:1,cursor:disabled?"not-allowed":"pointer",padding:pad[size]||pad.md,fontSize:fz[size]||fz.md,...vars[variant],...s}}>{children}</button>);
+};
+
+const Badge=({label,color=C.blue})=>(<span style={{padding:"2px 9px",borderRadius:100,fontSize:10,fontWeight:700,background:color+"18",color,border:`1px solid ${color}28`,display:"inline-block",whiteSpace:"nowrap"}}>{label}</span>);
+const Divider=({style:s={}})=>(<div style={{height:1,background:`linear-gradient(90deg,transparent,${C.border},transparent)`,...s}}/>);
+const StatPill=({label,value,color=C.blue})=>(<div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px 18px",position:"relative",overflow:"hidden"}}><div style={{position:"absolute",top:0,right:0,width:70,height:70,background:`radial-gradient(circle at 100% 0%,${color}18,transparent 70%)`,pointerEvents:"none"}}/><div style={{fontSize:22,fontWeight:800,fontFamily:SORA,color:C.text,marginBottom:4,letterSpacing:"-0.5px"}}>{value}</div><div style={{fontSize:11,color:C.textMuted,fontWeight:500}}>{label}</div></div>);
+
+const SVGP={sparkle:"M12 3l1.45 4.55L18 9l-4.55 1.45L12 15l-1.45-4.55L6 9l4.55-1.45L12 3zm5.5 9l.88 2.62L21 15.5l-2.62.88L17.5 19l-.88-2.62L14 15.5l2.62-.88L17.5 12zM5.5 14l.88 2.12 2.12.88-2.12.88L5.5 20l-.88-2.12L2.5 17l2.12-.88L5.5 14z",cpu:"M9 3H5a2 2 0 00-2 2v4M9 3h6M9 3v4M15 3h4a2 2 0 012 2v4M15 3v4M3 9v6M3 15v4a2 2 0 002 2h4M3 15h4M21 9v6M21 15v4a2 2 0 01-2 2h-4M21 15h-4M9 21h6M9 21v-4M15 21v-4M9 9h6v6H9z",layers:"M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5",spark2:"M13 2L3 14h9l-1 8 10-12h-9l1-8z",bull:"M3 11l19-9-9 19-2-8-8-2z",trend:"M23 6l-9.5 9.5-5-5L1 18M17 6h6v6",scale2:"M12 3v18M5 9l7-6 7 6M3 21h18M9 21V12a3 3 0 016 0v9",globe:"M12 2a10 10 0 100 20A10 10 0 0012 2zm0 0c2.8 0 5 4.5 5 10s-2.2 10-5 10-5-4.5-5-10 2.2-10 5-10zM2 12h20",build:"M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2zM9 22V12h6v10",swot:"M12 2L2 7v10l10 5 10-5V7zM12 2v20M2 7l10 5M22 7l-10 5",comp:"M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75",pitch:"M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2zM22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z",canvas:"M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z",dollar:"M12 1v22M17 5H9.5a3.5 3.5 0 100 7h5a3.5 3.5 0 110 7H6",market:"M22 12h-4l-3 9L9 3l-3 9H2",persona:"M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z",okr:"M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11",roadmap:"M5 12h14M12 5l7 7-7 7",val:"M3 3h18v18H3zM3 9h18M9 21V9",lean:"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",exit:"M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9",alert:"M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01",note:"M11 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-6M9 7h4M9 11h4M9 15h2M17.5 2.5a2.12 2.12 0 013 3L12 14l-4 1 1-4 7.5-7.5z",report:"M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8",media:"M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"};
+const SI=({name,size=20,color="#fff",style:s={}})=>{const d=SVGP[name];if(!d)return null;return(<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0,...s}}><path d={d}/></svg>);};
+
+const Donut=({value,max=100,color=C.blue,size=80,label})=>{const sw=7,r=(size-sw*2)/2,circ=2*Math.PI*r,pct=Math.max(0,Math.min(1,value/max)),gid=`d${color.replace(/[^a-z0-9]/gi,"")}${size}`;return(<div style={{textAlign:"center",display:"inline-flex",flexDirection:"column",alignItems:"center",gap:6}}><div style={{position:"relative",width:size,height:size}}><svg width={size} height={size} style={{transform:"rotate(-90deg)"}}><defs><linearGradient id={gid} x1="1" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color}/><stop offset="100%" stopColor={color} stopOpacity=".5"/></linearGradient></defs><circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={sw}/><circle cx={size/2} cy={size/2} r={r} fill="none" stroke={`url(#${gid})`} strokeWidth={sw} strokeDasharray={circ} strokeDashoffset={circ*(1-pct)} strokeLinecap="round" style={{filter:`drop-shadow(0 0 6px ${color}88)`,transition:"stroke-dashoffset .6s"}}/></svg><div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{fontSize:Math.round(size*.17),fontWeight:800,fontFamily:SORA,color:C.text,letterSpacing:"-0.5px"}}>{Math.round(pct*100)}%</div></div></div>{label&&<div style={{fontSize:10,color:C.textMuted,fontWeight:500}}>{label}</div>}</div>);};
+
+// ── SHARED INPUT (outside all components) ─────────────────
+const TF=({label,field,placeholder,large=false,value,onChange})=>(<div style={{marginBottom:11}}><label style={{fontSize:9,fontWeight:700,color:C.textMuted,display:"block",marginBottom:4,textTransform:"uppercase",letterSpacing:"0.08em"}}>{label}</label>{large?<textarea value={value||""} onChange={e=>onChange(field,e.target.value)} placeholder={placeholder} rows={2} style={{width:"100%",padding:"8px 11px",borderRadius:8,border:`1px solid ${C.border}`,background:"rgba(255,255,255,0.04)",color:C.text,fontSize:12,outline:"none",boxSizing:"border-box",resize:"none",fontFamily:SANS,lineHeight:1.6}}/>:<input value={value||""} onChange={e=>onChange(field,e.target.value)} placeholder={placeholder} style={{width:"100%",padding:"8px 11px",borderRadius:8,border:`1px solid ${C.border}`,background:"rgba(255,255,255,0.04)",color:C.text,fontSize:12,outline:"none",boxSizing:"border-box",fontFamily:SANS}}/>}</div>);
+
+// ── MODULES ───────────────────────────────────────────────
+const MODULES=[
+  {id:1,icon:"cpu",title:"Introduction to AI",sub:"Abstract tech to strategic utility",color:C.blue,xp:100,lessons:[
+    {title:"What is AI?",type:"video",dur:"6 min",body:"AI is software that learns from data to make decisions and create content.",points:["AI learns patterns from data","Three tiers: Narrow AI, ML, Generative AI","Generative AI creates new content from prompts","ChatGPT reached 100M users faster than any tech in history"]},
+    {title:"AI vs Human: Division of Labour",type:"reading",dur:"6 min",body:"The best businesses augment humans with AI. AI is the heavy lifter; humans are the strategists.",points:["AI does: drafts, analysis, automation","Human does: decisions, relationships, strategy","62% wrongly believe AI replaces jobs","AI always requires human verification"],myths:[{m:"AI Replaces Jobs",r:"AI takes tasks — you become invaluable"},{m:"You Need to Code",r:"Works like simple chat"},{m:"Only for Big Companies",r:"Levels the playing field"},{m:"AI Makes No Mistakes",r:"Always needs human review"}]},
+    {title:"Module 1 Quiz",type:"quiz",dur:"5 min",body:"",points:[],questions:[{q:"Which tier creates new content from a prompt?",opts:["Narrow AI","Machine Learning","Generative AI","Rule-based"],ans:2},{q:"Which task is AI LEAST suited for?",opts:["Writing drafts","Analysing data","Complex ethical decisions","Automating routines"],ans:2},{q:"AI always requires human review.",opts:["True","False"],ans:0}]}
+  ]},
+  {id:2,icon:"layers",title:"AI Tools Deep Dive",sub:"The 2025 business tech stack",color:C.teal,xp:150,lessons:[
+    {title:"The Modern AI Tech Stack",type:"reading",dur:"6 min",body:"One tool doesn't do it all. The most productive businesses build a stack of AI experts.",points:["ChatGPT: writing, strategy, analysis","Claude: long docs, careful reasoning","Gemini: Google Workspace native","Canva AI: design on autopilot"],tools:[{n:"ChatGPT",role:"Writing & Strategy",price:"Free/$20",ease:5,power:5},{n:"Claude",role:"Long Documents",price:"Free/$20",ease:5,power:5},{n:"Canva AI",role:"Design",price:"Free/$15",ease:5,power:3},{n:"Gemini",role:"Google Workspace",price:"Free/$20",ease:5,power:4}]},
+    {title:"Module 2 Quiz",type:"quiz",dur:"5 min",body:"",points:[],questions:[{q:"Best tool for a 150-page contract analysis?",opts:["ChatGPT","Canva AI","Claude","Gemini"],ans:2},{q:"Stacking AI tools means:",opts:["Using one premium tool","Combining tools in sequence","Paying for multiple plans","Testing before buying"],ans:1}]}
+  ]},
+  {id:3,icon:"spark2",title:"Prompt Engineering",sub:"The C-R-E-A-T framework",color:C.purple,xp:150,lessons:[
+    {title:"Why Prompt Quality = Output Quality",type:"video",dur:"6 min",body:"The quality of output depends entirely on the brief.",points:["Vague prompt = 25% quality output","C-R-E-A-T prompt = 95% quality output","The AI is not the strategist — you are"]},
+    {title:"The C-R-E-A-T Framework",type:"reading",dur:"8 min",body:"C-R-E-A-T is a modular prompt recipe.",points:["C = Context: your business situation","R = Role: expert persona for the AI","E = Execute: the specific task needed","A = Audience: who reads this output","T = Tone: voice, style, and constraints"]},
+    {title:"Module 3 Quiz",type:"quiz",dur:"5 min",body:"",points:[],questions:[{q:"What does 'R' in C-R-E-A-T stand for?",opts:["Result","Role","Research","Review"],ans:1},{q:"'E' in C-R-E-A-T stands for:",opts:["Evaluate","Estimate","Execute","Engage"],ans:2}]}
+  ]},
+  {id:4,icon:"bull",title:"AI for Marketing",sub:"Content pipeline & buyer personas",color:C.amber,xp:150,lessons:[
+    {title:"The Frictionless Content Pipeline",type:"video",dur:"7 min",body:"AI is your first-draft machine. It removes the blank page.",points:["Email engagement up 88% with AI content","TikTok AI content: 82% improvement","Instagram: 78% engagement improvement"]},
+    {title:"Module 4 Quiz",type:"quiz",dur:"5 min",body:"",points:[],questions:[{q:"AI improves email engagement by:",opts:["44%","65%","88%","92%"],ans:2},{q:"At which stage is AI content most effective?",opts:["Awareness","Consideration","Decision","Retention"],ans:2}]}
+  ]},
+  {id:5,icon:"trend",title:"AI ROI & Business Case",sub:"Measuring and proving AI value",color:C.coral,xp:100,lessons:[
+    {title:"The Time Arbitrage Advantage",type:"video",dur:"7 min",body:"Mastering the AI brief turns days of friction into minutes.",points:["Pitch deck: 480 min → 15 min (32× faster)","Business canvas: 240 min → 8 min","Email campaign: 60 min → 5 min"],times:[{task:"Pitch Deck",before:480,after:15},{task:"Business Canvas",before:240,after:8},{task:"Email Campaign",before:60,after:5}]},
+    {title:"Module 5 Quiz",type:"quiz",dur:"5 min",body:"",points:[],questions:[{q:"Typical year-one AI ROI?",opts:["50-100%","100-150%","150-300%","300-500%"],ans:2},{q:"Typical AI payback period?",opts:["2-6 months","6-12 months","12-18 months","18-24 months"],ans:0}]}
+  ]},
+  {id:6,icon:"scale2",title:"AI Governance & Ethics",sub:"Responsible AI in the enterprise",color:C.indigo,xp:100,lessons:[
+    {title:"Why AI Governance Matters",type:"reading",dur:"6 min",body:"Governance makes AI adoption sustainable and legally sound.",points:["GDPR applies fully to all AI use","Human oversight mandatory in high-stakes decisions"],myths:[{m:"Governance slows AI",r:"Enables sustainable trusted adoption"},{m:"Only enterprises need it",r:"Every AI user needs basic governance"}]},
+    {title:"Module 6 Quiz",type:"quiz",dur:"5 min",body:"",points:[],questions:[{q:"Who is Accountable for AI ethics policy?",opts:["AI Team","Legal","Leadership","End Users"],ans:2},{q:"AI governance exists to slow down AI adoption.",opts:["True","False"],ans:1}]}
+  ]}
+];
+const TOTAL_XP=MODULES.reduce((a,m)=>a+m.xp,0);
+
+// ── KIT TOOLS ─────────────────────────────────────────────
+const KIT_TOOLS=[{id:"swot",icon:"swot",label:"SWOT Analysis",color:C.blue,desc:"Strengths, Weaknesses, Opportunities, Threats",badge:"Strategy"},{id:"competitor",icon:"comp",label:"Competitor Analysis",color:C.teal,desc:"Map your competitive landscape",badge:"Research"},{id:"pitch",icon:"pitch",label:"Pitch Deck",color:C.purple,desc:"Investor-ready pitch deck outline",badge:"Fundraising"},{id:"canvas",icon:"canvas",label:"Business Model Canvas",color:C.amber,desc:"9-block Osterwalder canvas",badge:"Planning"},{id:"financials",icon:"dollar",label:"Financial Projections",color:C.green,desc:"Revenue, costs & runway model",badge:"Finance"},{id:"market",icon:"market",label:"Market Analysis",color:C.coral,desc:"TAM/SAM/SOM & market dynamics",badge:"Research"},{id:"persona",icon:"persona",label:"Customer Persona",color:C.indigo,desc:"Deep ICP & buyer persona builder",badge:"Marketing"},{id:"okr",icon:"okr",label:"OKR Framework",color:C.blue,desc:"Objectives & Key Results",badge:"Execution"},{id:"roadmap",icon:"roadmap",label:"Product Roadmap",color:C.teal,desc:"Feature & milestone planning",badge:"Product"},{id:"valuation",icon:"val",label:"Startup Valuation",color:C.amber,desc:"Pre-money valuation methods",badge:"Finance"},{id:"lean",icon:"lean",label:"Lean Canvas",color:C.purple,desc:"One-page startup model",badge:"Planning"},{id:"exit",icon:"exit",label:"Exit Strategy",color:C.coral,desc:"M&A, IPO, or acquisition planning",badge:"Growth"},{id:"go2market",icon:"bull",label:"Go-to-Market Strategy",color:C.green,desc:"Launch plan & growth playbook",badge:"Launch"},{id:"risk",icon:"alert",label:"Risk Register",color:C.amber,desc:"Identify, rank & mitigate risks",badge:"Governance"}];
+
+function buildPrompt(id,i){
+  const b=`Business: ${i.businessName||"N/A"}\nIndustry: ${i.industry||"N/A"}\nStage: ${i.stage||"N/A"}\nLocation: ${i.location||"UAE/GCC"}\nMRR: ${i.mrr||"N/A"}\nTeam: ${i.team||"N/A"}\nTarget Market: ${i.targetMarket||"N/A"}\nUSP: ${i.usp||"N/A"}\nDescription: ${i.description||"N/A"}`;
+  const P={
+    swot:`You are a senior business strategist. Create a comprehensive SWOT Analysis.\n\n${b}\n\n**STRENGTHS** — 5 internal advantages\n**WEAKNESSES** — 5 internal gaps\n**OPPORTUNITIES** — 5 external growth opportunities\n**THREATS** — 5 external risks\n**STRATEGIC IMPLICATIONS** — 3 priority actions\n**KEY INSIGHT** — Most important strategic finding`,
+    competitor:`You are a competitive intelligence analyst.\n\n${b}\n\n**TOP 5 COMPETITORS** — Name, pricing, strengths, weaknesses\n**MARKET GAPS** — 3 underserved opportunities\n**DIFFERENTIATION STRATEGY** — How to win\n**BATTLECARD** — 5 talking points vs competitors`,
+    pitch:`You are a pitch deck consultant. Create a 12-slide pitch deck.\n\n${b}\n\n**SLIDE 1: COVER** | **SLIDE 2: PROBLEM** | **SLIDE 3: SOLUTION** | **SLIDE 4: MARKET** | **SLIDE 5: PRODUCT** | **SLIDE 6: BUSINESS MODEL** | **SLIDE 7: TRACTION** | **SLIDE 8: COMPETITIVE LANDSCAPE** | **SLIDE 9: GO-TO-MARKET** | **SLIDE 10: TEAM** | **SLIDE 11: FINANCIALS** | **SLIDE 12: THE ASK**`,
+    canvas:`You are an Osterwalder expert.\n\n${b}\n\n**1. CUSTOMER SEGMENTS** | **2. VALUE PROPOSITIONS** | **3. CHANNELS** | **4. CUSTOMER RELATIONSHIPS** | **5. REVENUE STREAMS** | **6. KEY RESOURCES** | **7. KEY ACTIVITIES** | **8. KEY PARTNERSHIPS** | **9. COST STRUCTURE**\n\n**CANVAS HEALTH CHECK** — Rate each block 1-5`,
+    financials:`You are a CFO. Create 3-year financial projections.\n\n${b}\n\n**REVENUE PROJECTIONS** — Conservative/Base/Optimistic\n**COST STRUCTURE** — Fixed, variable, one-time\n**KEY METRICS** — Gross margin, CAC, LTV, break-even\n**CASH FLOW** — Monthly burn and runway\n**FUNDRAISING NEED**`,
+    market:`You are a market research analyst.\n\n${b}\n\n**MARKET SIZE** — TAM, SAM, SOM\n**MARKET TRENDS** — 5 key 2025-2026 trends\n**CUSTOMER SEGMENTATION** — 3-4 distinct segments\n**ENTRY BARRIERS** | **REGULATORY ENVIRONMENT** (UAE/GCC)\n**MARKET ENTRY STRATEGY**`,
+    persona:`You are a customer research expert. Build 2 buyer personas.\n\n${b}\n\nFor each: **DEMOGRAPHICS** | **PAIN POINTS** (Top 5) | **GOALS** | **BUYING BEHAVIOUR** | **OBJECTIONS** | **RESONANT MESSAGING**`,
+    okr:`You are an OKR expert.\n\n${b}\n\n**COMPANY OKRs** — 3 Objectives, 3-4 KRs each\n**DEPARTMENT OKRs** — Sales, Marketing, Product, People\n**SCORING GUIDE** | **WEEKLY CHECK-IN TEMPLATE**`,
+    roadmap:`You are a product strategist.\n\n${b}\n\n**Q1 — Foundation** | **Q2 — Traction** | **Q3 — Scale** | **Q4 — Optimise**\n**NORTH STAR METRIC** | **PRIORITISATION FRAMEWORK**`,
+    valuation:`You are a startup valuation expert.\n\n${b}\n\n**REVENUE MULTIPLE** | **DCF** | **COMPARABLE TRANSACTIONS** | **SCORECARD METHOD**\n**VALUATION SUMMARY** — Low/Mid/High\n**5 LEVERS TO INCREASE VALUATION**`,
+    lean:`You are a Lean Startup expert.\n\n${b}\n\n**1. PROBLEM** | **2. CUSTOMER SEGMENTS** | **3. UVP** | **4. SOLUTION** | **5. CHANNELS** | **6. REVENUE** | **7. COSTS** | **8. KEY METRICS** | **9. UNFAIR ADVANTAGE**\n**MVP DEFINITION**`,
+    exit:`You are an M&A advisor.\n\n${b}\n\n**EXIT OPTIONS** — Acquisition, PE buyout, IPO, MBO\n**RECOMMENDED PATH** | **VALUE CREATION ROADMAP** | **DUE DILIGENCE PREP** | **UAE/GCC TAX CONSIDERATIONS**`,
+    go2market:`You are a GTM strategy expert.\n\n${b}\n\n**GTM OVERVIEW** — ICP, value proposition, pricing\n**CHANNEL STRATEGY** — LinkedIn, Events, Referrals, Content, Paid\n**SALES PLAYBOOK** | **LAUNCH CHECKLIST** (4 weeks) | **90-DAY SPRINT**`,
+    risk:`You are a risk management consultant.\n\n${b}\n\nFor each risk: Description | Likelihood (1-5) | Impact (1-5) | Mitigation | Contingency\n\n**STRATEGIC RISKS** | **FINANCIAL RISKS** | **OPERATIONAL RISKS** | **MARKET RISKS** | **REGULATORY RISKS** | **TECH RISKS** | **PEOPLE RISKS**\n**TOP 3 CRITICAL RISKS** | **BUSINESS CONTINUITY PLAN**`
+  };
+  return P[id]||"Generate a detailed business analysis.";
+}
+
+// ── MEDIA LIBRARY DATA ────────────────────────────────────
+const SESSIONS=[
+  {id:1,title:"Session 1: The Executive's Primer on AI",subtitle:"From abstract technology to strategic business utility",color:"#4F8EF7",emoji:"🧠",description:"Understand what AI really is, how it evolved over 70 years, and why it is now the most important business tool of our generation.",slides:[{title:"The Executive's Primer on AI",desc:"From abstract technology to strategic business utility"},{title:"Demystifying Artificial Intelligence",desc:"AI learns patterns and applies them — the 3-step loop"},{title:"The Three Tiers of AI Capability",desc:"Narrow AI · Machine Learning · Generative AI"},{title:"The 70-Year Evolution to Mainstream Adoption",desc:"From 20% in the 1950s to 100% in 2023+"},{title:"Three Catalysts Driving the AI Explosion",desc:"ChatGPT · Zero-code accessibility · Unignorable ROI"},{title:"The Impact Zone: Industry-Agnostic Disruption",desc:"Healthcare 92% · Marketing 90% · Finance 88%"},{title:"Evaluating Capabilities: AI vs. Human",desc:"Where AI dominates · The human advantage"},{title:"The Blueprint: Strategic Division of Labor",desc:"AI = The Heavy Lifter · Human = The Strategist"},{title:"The Executive Imperative",desc:"The competitive gap is widening today"}],infographics:[{title:"AI for Business: The New Competitive Edge",desc:"Defining the AI landscape · 70 years of progress · Industry impact scores 2025"},{title:"AI-Powered Business: Your 90-Day Digital Transformation",desc:"40-60% task automation · 10x faster customer response · 90-day roadmap"}]},
+  {id:2,title:"Session 2: The 2025 AI Tools Deep Dive",subtitle:"The Business Playbook: Use Cases, Prompts & Strategies",color:"#2DD4BF",emoji:"🛠️",description:"Master the 6 essential AI tools that form the modern business tech stack. Learn when to use each, how to stack them, and how to get professional outputs every time.",slides:[{title:"The 2025 AI Tools Deep Dive",desc:"The Business Playbook — Creative Scale, June 2025"},{title:"The Modern AI Tech Stack",desc:"ChatGPT · Claude · Gemini · Canva AI · Notion AI · Perplexity"},{title:"ChatGPT — The Generalist Partner",desc:"Content 92% · Email 88% · Strategy 85%"},{title:"ChatGPT In Action: Anatomy & ROI",desc:"Email templates: 45min→3min · Proposals: 4hrs→20min"},{title:"Claude — The Heavy Lifter",desc:"200-page context window · Safety 95% · Reasoning 92%"},{title:"Claude In Action: Document Processing",desc:"Upload PDF → Reason step-by-step → Extract insights"},{title:"Canva AI — Design on Autopilot",desc:"Brief → Template → Magic Media → Brand Kit → Export"},{title:"Gemini — The Workspace Native",desc:"Google Search 95% · Docs 92% · Gmail 90%"},{title:"Gemini In Action: Contextual Prompting",desc:"Gmail · Docs · Sheets — live examples with time savings"},{title:"Notion AI — Your Company Brain",desc:"Meeting notes: 1hr→3min · SOPs: 3hrs→15min"},{title:"Perplexity AI — The Real-Time Researcher",desc:"Competitor research: 4hrs→10min"},{title:"The Synthesis Matrix: Which Tool Do I Use?",desc:"Match every business task to the right AI tool"},{title:"Stacking AI: Advanced Workflows",desc:"Pitch deck · Business plan · Social campaign"},{title:"The 4 Golden Rules of Prompting",desc:"Assign role · Set quality bar · Feed context · Demand verification"},{title:"Your Next Step",desc:"Pick one bottleneck today and apply the right tool"}],infographics:[{title:"The 2025 AI Ecosystem: Essential Tools for Business Efficiency",desc:"ChatGPT vs Claude · Canva · Gemini · Notion · Perplexity — time savings mapped"}]},
+  {id:3,title:"Session 3: AI Powered Business Growth",subtitle:"The Prompt Engineering & Operations Playbook",color:"#A78BFA",emoji:"🚀",description:"The C-R-E-A-T framework, time arbitrage, marketing automation, 24/7 customer service, and how to prove AI ROI to yourself and your stakeholders.",slides:[{title:"AI Powered Business Growth",desc:"The Prompt Engineering & Operations Playbook"},{title:"The Quality of the Output Depends Entirely on the Brief",desc:"Vague prompt = generic output · C-R-E-A-T = business asset"},{title:"Prompt Quality Directly Determines Output Value",desc:"Vague 25% · Basic 52% · Structured 75% · C-R-E-A-T 95%"},{title:"The C-R-E-A-T Extrusion Process",desc:"Context → Role → Execute → Audience → Tone"},{title:"Deploying C-R-E-A-T: Modular Prompt Recipes",desc:"Thought leadership post · Executive proposal"},{title:"The Time Arbitrage Advantage",desc:"Pitch deck 480m→15m · Business canvas 240m→8m"},{title:"Strategic Application: The 10-Minute Business Canvas",desc:"Context → Completion → Refine"},{title:"Generative Scale: Wireframing Pitch Decks",desc:"Gamma vs Claude/ChatGPT narrative-first approach"},{title:"Daily Operations: Automating Core Documentation",desc:"SOPs · Executive reports · Give AI the structure"},{title:"Mapping the AI Tool Ecosystem for Business Operations",desc:"Capability radar across 7 tools"},{title:"The Tool Selector Decision Engine",desc:"Decision tree: What is your primary objective?"},{title:"The Law of Depth: Master One Before Adding Another",desc:"Mastery of one tool beats shallow usage of many"},{title:"The AI Operations Blueprint",desc:"Input → Strategy Engine → Execution Engine → Output"}],infographics:[{title:"90 Days to an AI-Powered Business: Your Roadmap",desc:"Phase 1-4 · Time savings by task · 22% revenue uplift · 10x faster response"},{title:"Shaping the AI-Powered Business",desc:"Your playbook for turning digital clay into automated workflows"}]}
+];
+
+// ── LOGIN SCREEN ──────────────────────────────────────────
+function LoginScreen({onLogin}){
+  const[name,setName]=useState("");
+  const[code,setCode]=useState("");
+  const[err,setErr]=useState("");
+  const[focus,setFocus]=useState("");
+  const handle=()=>{
+    if(!name.trim()){setErr("Please enter your full name.");return;}
+    if(!code.trim()){setErr("Please enter your access code.");return;}
+    if(!VALID_CODES.includes(code.trim().toUpperCase())){setErr("Invalid access code. Please check your code or contact Setana.");return;}
+    onLogin({name:name.trim(),joined:new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})});
+  };
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px 20px",position:"relative",overflow:"hidden"}}>
+      <div style={{position:"absolute",inset:0,pointerEvents:"none"}}>
+        <div style={{position:"absolute",width:700,height:700,borderRadius:"50%",background:"radial-gradient(circle,rgba(79,142,247,0.13),transparent 70%)",top:"-20%",left:"-15%",filter:"blur(50px)"}}/>
+        <div style={{position:"absolute",width:600,height:600,borderRadius:"50%",background:"radial-gradient(circle,rgba(167,139,250,0.11),transparent 70%)",bottom:"-15%",right:"-10%",filter:"blur(50px)"}}/>
+        <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(79,142,247,0.035) 1px,transparent 1px),linear-gradient(90deg,rgba(79,142,247,0.035) 1px,transparent 1px)",backgroundSize:"60px 60px"}}/>
+      </div>
+      <div className="fade-up" style={{width:"100%",maxWidth:480,position:"relative",zIndex:1}}>
+        <div style={{textAlign:"center",marginBottom:32}}>
+          <div style={{width:68,height:68,borderRadius:22,margin:"0 auto 18px",background:C.grad1,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 0 1px rgba(79,142,247,0.45),0 10px 40px rgba(79,142,247,0.35)"}}><SI name="sparkle" size={30} color="#fff"/></div>
+          <h1 style={{fontFamily:SORA,fontSize:28,fontWeight:800,letterSpacing:"-0.6px",marginBottom:8,background:C.gradText,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>AI Business Academy</h1>
+          <p style={{fontSize:14,color:C.textSub}}>by <span style={{background:C.gradText2,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",fontWeight:700}}>Setana Ahmed</span></p>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:24}}>
+          {[{icon:"spark2",label:"6 AI Modules",sub:"Learn & earn XP",color:C.blue},{icon:"swot",label:"14 Kit Tools",sub:"SWOT to exit strategy",color:C.purple},{icon:"globe",label:"10 AI Tools",sub:"Curated deep-dives",color:C.teal},{icon:"note",label:"Business Journal",sub:"Daily AI coaching",color:C.coral}].map(f=>(
+            <div key={f.label} style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",borderRadius:12,background:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`}}>
+              <div style={{width:34,height:34,borderRadius:9,background:f.color+"18",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><SI name={f.icon} size={16} color={f.color}/></div>
+              <div><div style={{fontSize:12,fontWeight:700,color:C.text}}>{f.label}</div><div style={{fontSize:10,color:C.textMuted}}>{f.sub}</div></div>
+            </div>
+          ))}
+        </div>
+        <div style={{background:"rgba(12,18,32,0.9)",border:`1px solid ${C.borderMid}`,borderRadius:22,padding:"32px 32px 28px",backdropFilter:"blur(32px)",boxShadow:"0 24px 64px rgba(0,0,0,0.55)"}}>
+          {[{label:"FULL NAME",val:name,set:setName,type:"text",ph:"e.g. Sarah Al-Mansouri",k:"name"},{label:"ACCESS CODE",val:code,set:setCode,type:"text",ph:"Enter your access code",k:"code"}].map(f=>(
+            <div key={f.k} style={{marginBottom:16}}>
+              <label style={{fontSize:10,fontWeight:700,color:C.textMuted,display:"block",marginBottom:7,letterSpacing:"0.1em",textTransform:"uppercase"}}>{f.label}</label>
+              <input value={f.val} onChange={e=>f.set(e.target.value)} type={f.type} onKeyDown={e=>e.key==="Enter"&&handle()} onFocus={()=>setFocus(f.k)} onBlur={()=>setFocus("")} placeholder={f.ph} style={{width:"100%",padding:"13px 16px",borderRadius:12,border:`1px solid ${focus===f.k?C.blue:C.border}`,background:focus===f.k?"rgba(79,142,247,0.07)":"rgba(255,255,255,0.03)",color:C.text,fontSize:14,fontFamily:SANS,outline:"none",transition:"all .18s",boxSizing:"border-box"}}/>
+            </div>
+          ))}
+          {err&&<div style={{marginBottom:16,padding:"11px 14px",borderRadius:10,background:"rgba(251,113,133,0.1)",border:"1px solid rgba(251,113,133,0.3)",fontSize:13,color:C.coral}}>⚠️ {err}</div>}
+          <button onClick={handle} style={{width:"100%",padding:"15px",borderRadius:14,background:C.grad1,color:"#fff",border:"none",fontSize:15,fontWeight:800,fontFamily:SORA,cursor:"pointer",boxShadow:"0 4px 28px rgba(79,142,247,0.45)"}}>Enter Academy →</button>
+          <p style={{fontSize:11,color:C.textDim,textAlign:"center",marginTop:16,lineHeight:1.7}}>Access code provided after enrollment · Contact Setana to register</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── MEDIA LIBRARY ─────────────────────────────────────────
+function MediaLibrary(){
+  const[activeSession,setActiveSession]=useState(null);
+  const[slideIdx,setSlideIdx]=useState(0);
+  const[tab,setTab]=useState("slides");
+  const[watched,setWatched]=useState({});
+  const mark=(sid,i)=>setWatched(p=>({...p,[`${sid}-${i}`]:true}));
+
+  if(activeSession){
+    const session=SESSIONS.find(s=>s.id===activeSession);
+    const slide=session.slides[slideIdx];
+    const total=session.slides.length;
+    const wCount=session.slides.filter((_,i)=>watched[`${session.id}-${i}`]).length;
+    return(
+      <div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20}}>
+          <button onClick={()=>{setActiveSession(null);setSlideIdx(0);setTab("slides");}} style={{padding:"7px 14px",borderRadius:8,background:"rgba(255,255,255,0.06)",border:`1px solid ${C.border}`,color:C.textSub,fontSize:13}}>← Media Library</button>
+          <span style={{color:C.textMuted}}>›</span><span style={{fontSize:13,fontWeight:600,color:C.text}}>{session.emoji} {session.title}</span>
+        </div>
+        <div style={{borderRadius:16,padding:"22px 26px",marginBottom:18,background:`linear-gradient(135deg,${session.color}20,${session.color}08)`,border:`1.5px solid ${session.color}33`}}>
+          <div style={{fontSize:11,fontWeight:700,color:session.color,marginBottom:5,letterSpacing:"0.08em",textTransform:"uppercase"}}>📚 Module {session.id}</div>
+          <h2 style={{fontFamily:SORA,fontSize:18,fontWeight:800,color:C.text,marginBottom:5}}>{session.title}</h2>
+          <p style={{fontSize:13,color:C.textSub,lineHeight:1.7,marginBottom:12}}>{session.description}</p>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            <span style={{padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,background:session.color+"22",color:session.color}}>{total} slides</span>
+            <span style={{padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,background:"rgba(52,211,153,0.15)",color:C.green}}>{wCount}/{total} viewed</span>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:8,marginBottom:18}}>
+          {["slides","infographics"].map(t=><button key={t} onClick={()=>setTab(t)} style={{padding:"8px 18px",borderRadius:20,border:"none",fontSize:12,fontWeight:700,background:tab===t?C.grad1:"rgba(255,255,255,0.06)",color:tab===t?"#fff":C.textSub}}>{t==="slides"?`📑 Slides (${total})`:`🖼️ Infographics (${session.infographics?.length||0})`}</button>)}
+        </div>
+        {tab==="slides"&&(
+          <div style={{display:"grid",gridTemplateColumns:"240px 1fr",gap:16}}>
+            <div style={{maxHeight:580,overflowY:"auto"}}>
+              {session.slides.map((s,i)=>{const isW=watched[`${session.id}-${i}`];const isA=slideIdx===i;return(<div key={i} onClick={()=>{setSlideIdx(i);mark(session.id,i);}} style={{padding:"9px 11px",borderRadius:9,marginBottom:4,cursor:"pointer",background:isA?`${session.color}20`:"rgba(255,255,255,0.03)",border:`1px solid ${isA?session.color+"55":C.border}`}}><div style={{display:"flex",alignItems:"flex-start",gap:7}}><div style={{width:20,height:20,borderRadius:5,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,background:isW?"rgba(52,211,153,0.2)":isA?session.color+"22":"rgba(255,255,255,0.06)",color:isW?C.green:isA?session.color:C.textMuted}}>{isW?"✓":i+1}</div><div><div style={{fontSize:11,fontWeight:isA?700:400,color:isA?C.text:C.textSub,lineHeight:1.4,marginBottom:1}}>{s.title}</div><div style={{fontSize:9,color:C.textMuted,lineHeight:1.3}}>{s.desc}</div></div></div></div>);})}
+            </div>
+            <div>
+              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,overflow:"hidden",marginBottom:10}}>
+                <div style={{background:"linear-gradient(135deg,#0d1535,#1a1040)",minHeight:340,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:36,position:"relative",textAlign:"center"}}>
+                  <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:`linear-gradient(90deg,${session.color},${session.color}66,transparent)`}}/>
+                  <div style={{width:52,height:52,borderRadius:14,background:session.color+"22",border:`1px solid ${session.color}44`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:16,fontSize:22}}>{session.emoji}</div>
+                  <div style={{fontSize:10,fontWeight:700,color:session.color,marginBottom:8,letterSpacing:"0.1em",textTransform:"uppercase"}}>Slide {slideIdx+1} of {total}</div>
+                  <h3 style={{fontFamily:SORA,fontSize:22,fontWeight:800,color:"#fff",letterSpacing:"-0.4px",lineHeight:1.2,marginBottom:10,maxWidth:480}}>{slide.title}</h3>
+                  <p style={{fontSize:13,color:"rgba(255,255,255,0.6)",lineHeight:1.7,maxWidth:440}}>{slide.desc}</p>
+                  <div style={{position:"absolute",bottom:12,right:16,fontSize:10,color:"rgba(255,255,255,0.15)"}}>Creative Scale · AI in Business Course 2025</div>
+                </div>
+                <div style={{padding:"12px 18px",borderTop:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <button onClick={()=>{if(slideIdx>0){setSlideIdx(i=>i-1);mark(session.id,slideIdx-1);}}} disabled={slideIdx===0} style={{padding:"7px 14px",borderRadius:8,border:`1px solid ${C.border}`,background:"rgba(255,255,255,0.05)",color:C.textSub,fontSize:12,opacity:slideIdx===0?.4:1}}>← Prev</button>
+                  <span style={{fontSize:12,color:C.textMuted}}>{slideIdx+1} / {total}</span>
+                  <button onClick={()=>{if(slideIdx<total-1){setSlideIdx(i=>i+1);mark(session.id,slideIdx+1);}}} disabled={slideIdx===total-1} style={{padding:"7px 14px",borderRadius:8,border:"none",background:session.color,color:"#fff",fontSize:12,opacity:slideIdx===total-1?.4:1}}>Next →</button>
+                </div>
+              </div>
+              <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 14px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{fontSize:11,color:C.textMuted}}>Session progress</span><span style={{fontSize:11,color:session.color,fontWeight:700}}>{Math.round((wCount/total)*100)}%</span></div>
+                <div style={{height:4,background:"rgba(255,255,255,0.06)",borderRadius:10,overflow:"hidden"}}><div style={{height:4,width:`${(wCount/total)*100}%`,background:session.color,borderRadius:10,transition:"width .4s"}}/></div>
+              </div>
+            </div>
+          </div>
+        )}
+        {tab==="infographics"&&(
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>
+            {session.infographics?.map((inf,i)=>(
+              <div key={i} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden"}}>
+                <div style={{height:160,background:`linear-gradient(135deg,${session.color}18,${session.color}06)`,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{textAlign:"center"}}><div style={{fontSize:40,marginBottom:6}}>📊</div><div style={{fontSize:11,color:C.textSub}}>Visual Infographic</div></div></div>
+                <div style={{padding:14}}><div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:5}}>{inf.title}</div><div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>{inf.desc}</div></div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const totalSlides=SESSIONS.reduce((a,s)=>a+s.slides.length,0);
+  const totalWatched=SESSIONS.reduce((a,s)=>a+s.slides.filter((_,i)=>watched[`${s.id}-${i}`]).length,0);
+  return(
+    <div>
+      <div style={{marginBottom:20}}><h2 style={{fontFamily:SORA,fontSize:22,fontWeight:800,letterSpacing:"-0.5px",color:C.text,marginBottom:4}}>🎬 Media Library</h2><p style={{fontSize:14,color:C.textSub}}>3 sessions · {totalSlides} slides · 5 infographics · by Setana Ahmed</p></div>
+      <div style={{background:"linear-gradient(135deg,rgba(79,142,247,0.12),rgba(167,139,250,0.1))",border:`1px solid rgba(79,142,247,0.2)`,borderRadius:14,padding:"18px 22px",marginBottom:22}}>
+        <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:12,marginBottom:12}}>
+          <div><div style={{fontFamily:SORA,fontSize:15,fontWeight:700,color:C.text,marginBottom:3}}>Your Learning Progress</div><div style={{fontSize:12,color:C.textSub}}>{totalWatched} of {totalSlides} slides viewed</div></div>
+          <div style={{display:"flex",gap:16}}>{[{label:"Sessions",val:"3",color:C.blue},{label:"Slides",val:totalSlides,color:C.teal},{label:"Infographics",val:"5",color:C.amber},{label:"Viewed",val:totalWatched,color:C.green}].map(s=><div key={s.label} style={{textAlign:"center"}}><div style={{fontSize:20,fontWeight:800,fontFamily:SORA,color:s.color}}>{s.val}</div><div style={{fontSize:10,color:C.textMuted}}>{s.label}</div></div>)}</div>
+        </div>
+        <div style={{height:4,background:"rgba(255,255,255,0.08)",borderRadius:10,overflow:"hidden"}}><div style={{height:4,width:`${Math.round((totalWatched/totalSlides)*100)}%`,background:C.grad1,borderRadius:10,transition:"width .5s"}}/></div>
+      </div>
+      <div style={{fontFamily:SORA,fontSize:15,fontWeight:700,color:C.text,marginBottom:12,display:"flex",alignItems:"center",gap:10}}>📑 Presentation Sessions<div style={{flex:1,height:1,background:C.border}}/></div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:22}}>
+        {SESSIONS.map(session=>{
+          const wc=session.slides.filter((_,i)=>watched[`${session.id}-${i}`]).length;
+          const pct=Math.round((wc/session.slides.length)*100);
+          return(<div key={session.id} onClick={()=>{setActiveSession(session.id);setSlideIdx(0);setTab("slides");}} style={{padding:20,borderRadius:14,cursor:"pointer",background:C.bgCard,border:`1px solid ${pct===100?session.color+"44":C.border}`,transition:"all .2s",position:"relative",overflow:"hidden"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=session.color+"66";e.currentTarget.style.transform="translateY(-2px)";}} onMouseLeave={e=>{e.currentTarget.style.borderColor=pct===100?session.color+"44":C.border;e.currentTarget.style.transform="translateY(0)";}}>
+            <div style={{position:"absolute",top:-20,right:-20,width:90,height:90,borderRadius:"50%",background:`radial-gradient(circle,${session.color}14,transparent 70%)`,pointerEvents:"none"}}/>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}><div style={{width:44,height:44,borderRadius:12,background:session.color+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>{session.emoji}</div><span style={{fontSize:9,padding:"3px 8px",borderRadius:7,background:session.color+"18",color:session.color,fontWeight:700}}>SESSION {session.id}</span></div>
+            <div style={{fontFamily:SORA,fontSize:13,fontWeight:800,color:C.text,marginBottom:4,lineHeight:1.3}}>{session.title}</div>
+            <div style={{fontSize:11,color:C.textMuted,lineHeight:1.5,marginBottom:12}}>{session.subtitle}</div>
+            <div style={{display:"flex",gap:7,marginBottom:10,flexWrap:"wrap"}}><span style={{padding:"2px 8px",borderRadius:20,fontSize:10,background:"rgba(255,255,255,0.06)",color:C.textSub}}>📑 {session.slides.length} slides</span>{session.infographics?.length>0&&<span style={{padding:"2px 8px",borderRadius:20,fontSize:10,background:"rgba(252,211,77,0.1)",color:C.amber}}>🖼️ {session.infographics.length} infographic{session.infographics.length>1?"s":""}</span>}</div>
+            <div style={{height:3,background:"rgba(255,255,255,0.06)",borderRadius:10,overflow:"hidden",marginBottom:5}}><div style={{height:3,width:`${pct}%`,background:session.color,borderRadius:10}}/></div>
+            <div style={{fontSize:10,color:pct===100?C.green:C.textMuted,fontWeight:pct===100?700:400}}>{pct===100?"✓ Completed":pct>0?`${pct}% — ${wc}/${session.slides.length} viewed`:"Click to start"}</div>
+          </div>);
+        })}
+      </div>
+      <div style={{fontFamily:SORA,fontSize:15,fontWeight:700,color:C.text,marginBottom:12,display:"flex",alignItems:"center",gap:10}}>🖼️ Course Infographics<div style={{flex:1,height:1,background:C.border}}/></div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10}}>
+        {[{title:"AI for Business: The New Competitive Edge",session:"Session 1",color:C.blue},{title:"AI-Powered Business: 90-Day Transformation",session:"Session 1",color:C.blue},{title:"The 2025 AI Ecosystem: Essential Tools",session:"Session 2",color:C.teal},{title:"90 Days to an AI-Powered Business",session:"Session 3",color:C.purple},{title:"Shaping the AI-Powered Business",session:"Session 3",color:C.purple}].map((inf,i)=>(
+          <div key={i} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:11,overflow:"hidden"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=inf.color+"55";e.currentTarget.style.transform="translateY(-2px)";}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.transform="translateY(0)";}}>
+            <div style={{height:110,background:`linear-gradient(135deg,${inf.color}22,${inf.color}06)`,display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}><div style={{position:"absolute",top:5,left:5,fontSize:8,padding:"2px 6px",borderRadius:5,background:inf.color+"22",color:inf.color,fontWeight:700}}>{inf.session}</div><div style={{textAlign:"center"}}><div style={{fontSize:26}}>📊</div></div></div>
+            <div style={{padding:9}}><div style={{fontSize:10,fontWeight:700,color:C.text,lineHeight:1.3,marginBottom:3}}>{inf.title}</div></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── ENTREPRENEUR KIT ──────────────────────────────────────
+function EntrepreneurKit(){
+  const[active,setActive]=useState(null);
+  const[inputs,setInputs]=useState({});
+  const[output,setOutput]=useState("");
+  const[loading,setLoading]=useState(false);
+  const[savedOutputs,setSavedOutputs]=useState({});
+  const handleInput=useCallback((field,val)=>setInputs(p=>({...p,[field]:val})),[]);
+  const generate=async(tool)=>{setOutput("");setLoading(true);try{const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1500,messages:[{role:"user",content:buildPrompt(tool.id,inputs)}]})});const d=await res.json();setOutput(d.content?.[0]?.text||"Error.");}catch{setOutput("Error. Please try again.");}setLoading(false);};
+  const saveOutput=()=>{if(!active||!output)return;setSavedOutputs(p=>({...p,[active.id]:{text:output,date:new Date().toLocaleDateString("en-GB"),label:active.label}}));};
+  const download=()=>{if(!output||!active)return;const blob=new Blob([output],{type:"text/plain"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`${active.label.replace(/\s+/g,"-")}.txt`;a.click();URL.revokeObjectURL(url);};
+  if(!active)return(
+    <div>
+      <div style={{marginBottom:20}}><h2 style={{fontFamily:SORA,fontSize:22,fontWeight:800,letterSpacing:"-0.5px",color:C.text,marginBottom:4}}>🚀 Entrepreneur Kit</h2><p style={{fontSize:14,color:C.textSub}}>14 AI-powered business tools. Fill context once, generate everything.</p></div>
+      <div style={{background:"rgba(79,142,247,0.06)",border:"1px solid rgba(79,142,247,0.2)",borderRadius:13,padding:"14px 18px",marginBottom:18}}>
+        <div style={{fontSize:12,fontWeight:700,color:C.blue,marginBottom:10}}>⚡ Fill your business context — all 14 tools will use it</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+          {[{l:"Business Name",f:"businessName",p:"e.g. Creative Scale"},{l:"Industry",f:"industry",p:"e.g. AI Consulting"},{l:"Stage",f:"stage",p:"e.g. Startup"},{l:"Location",f:"location",p:"e.g. Dubai, UAE"},{l:"MRR ($)",f:"mrr",p:"e.g. $12,000"},{l:"Team Size",f:"team",p:"e.g. 5 FTEs"},{l:"Target Market",f:"targetMarket",p:"SME owners UAE"},{l:"USP",f:"usp",p:"Your unique edge"}].map(f=><TF key={f.f} label={f.l} field={f.f} placeholder={f.p} value={inputs[f.f]} onChange={handleInput}/>)}
+        </div>
+      </div>
+      {Object.keys(savedOutputs).length>0&&<div style={{marginBottom:16}}><div style={{fontSize:12,fontWeight:700,color:C.green,marginBottom:8}}>💾 Saved ({Object.keys(savedOutputs).length})</div><div style={{display:"flex",gap:7,flexWrap:"wrap"}}>{Object.entries(savedOutputs).map(([id,s])=><button key={id} onClick={()=>{setActive(KIT_TOOLS.find(t=>t.id===id));setOutput(s.text);}} style={{padding:"5px 12px",borderRadius:8,background:"rgba(52,211,153,0.1)",border:`1px solid ${C.green}33`,color:C.green,fontSize:11,fontWeight:600}}>📄 {s.label}</button>)}</div></div>}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:11}}>
+        {KIT_TOOLS.map(tool=><div key={tool.id} onClick={()=>{setActive(tool);setOutput(savedOutputs[tool.id]?.text||"");}} style={{padding:18,borderRadius:14,cursor:"pointer",background:C.bgCard,border:`1px solid ${savedOutputs[tool.id]?tool.color+"44":C.border}`,transition:"all .2s",position:"relative",overflow:"hidden"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=tool.color+"55";e.currentTarget.style.transform="translateY(-2px)";}} onMouseLeave={e=>{e.currentTarget.style.borderColor=savedOutputs[tool.id]?tool.color+"44":C.border;e.currentTarget.style.transform="translateY(0)";}}>
+          <div style={{position:"absolute",top:-15,right:-15,width:70,height:70,borderRadius:"50%",background:`radial-gradient(circle,${tool.color}12,transparent 70%)`,pointerEvents:"none"}}/>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}><div style={{width:40,height:40,borderRadius:10,background:tool.color+"16",display:"flex",alignItems:"center",justifyContent:"center"}}><SI name={tool.icon} size={18} color={tool.color}/></div><div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:3}}><span style={{fontSize:9,padding:"2px 7px",borderRadius:7,background:tool.color+"18",color:tool.color,fontWeight:700}}>{tool.badge}</span>{savedOutputs[tool.id]&&<span style={{fontSize:9,color:C.green,fontWeight:700}}>✓ Saved</span>}</div></div>
+          <div style={{fontFamily:SORA,fontSize:12,fontWeight:700,color:C.text,marginBottom:3}}>{tool.label}</div>
+          <div style={{fontSize:10,color:C.textMuted,lineHeight:1.5,marginBottom:8}}>{tool.desc}</div>
+          <div style={{fontSize:10,color:tool.color,fontWeight:600}}>Generate with AI →</div>
+        </div>)}
+      </div>
+    </div>
+  );
+  return(
+    <div>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18}}><button onClick={()=>{setActive(null);}} style={{padding:"7px 14px",borderRadius:8,background:"rgba(255,255,255,0.06)",border:`1px solid ${C.border}`,color:C.textSub,fontSize:13}}>← Back to Kit</button><span style={{color:C.textMuted}}>›</span><span style={{fontSize:13,fontWeight:600,color:C.text}}>{active.label}</span></div>
+      <div style={{display:"grid",gridTemplateColumns:"300px 1fr",gap:18}}>
+        <div><Card style={{background:`linear-gradient(135deg,${active.color}10,${active.color}04)`,border:`1.5px solid ${active.color}33`}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}><div style={{width:38,height:38,borderRadius:9,background:active.color+"22",display:"flex",alignItems:"center",justifyContent:"center"}}><SI name={active.icon} size={17} color={active.color}/></div><div><div style={{fontSize:13,fontWeight:700,color:C.text}}>{active.label}</div><div style={{fontSize:10,color:active.color,fontWeight:600}}>{active.badge}</div></div></div>
+          <Divider style={{marginBottom:12}}/>
+          <TF label="Business Name" field="businessName" placeholder="e.g. Creative Scale" value={inputs.businessName} onChange={handleInput}/>
+          <TF label="Industry" field="industry" placeholder="e.g. AI Consulting" value={inputs.industry} onChange={handleInput}/>
+          <TF label="Stage" field="stage" placeholder="e.g. Startup" value={inputs.stage} onChange={handleInput}/>
+          <TF label="Location" field="location" placeholder="e.g. Dubai, UAE" value={inputs.location} onChange={handleInput}/>
+          <TF label="MRR / Revenue" field="mrr" placeholder="e.g. $12,000/mo" value={inputs.mrr} onChange={handleInput}/>
+          <TF label="Team Size" field="team" placeholder="e.g. 5 FTEs" value={inputs.team} onChange={handleInput}/>
+          <TF label="Target Market" field="targetMarket" placeholder="Who are your customers?" large value={inputs.targetMarket} onChange={handleInput}/>
+          <TF label="USP" field="usp" placeholder="Your unique advantage" value={inputs.usp} onChange={handleInput}/>
+          {["pitch","lean","swot"].includes(active.id)&&<TF label="Problem You Solve" field="problem" placeholder="The pain you address" large value={inputs.problem} onChange={handleInput}/>}
+          {["pitch","lean","canvas"].includes(active.id)&&<TF label="Your Solution" field="solution" placeholder="How you solve it" large value={inputs.solution} onChange={handleInput}/>}
+          {["market","valuation"].includes(active.id)&&<TF label="Market Size (TAM)" field="marketSize" placeholder="e.g. $4.2B GCC" value={inputs.marketSize} onChange={handleInput}/>}
+          {["valuation","exit"].includes(active.id)&&<TF label="Valuation" field="valuation" placeholder="e.g. $1.2M pre-seed" value={inputs.valuation} onChange={handleInput}/>}
+          {["canvas","financials","go2market"].includes(active.id)&&<TF label="Revenue Model" field="model" placeholder="e.g. SaaS / Retainer" value={inputs.model} onChange={handleInput}/>}
+          <TF label="Additional Context" field="description" placeholder="Any other info..." large value={inputs.description} onChange={handleInput}/>
+          <Btn onClick={()=>generate(active)} disabled={loading} style={{width:"100%",justifyContent:"center",marginTop:4}}>{loading?"⏳ Generating...":"🚀 Generate "+active.label}</Btn>
+        </Card></div>
+        <div>{output?<Card><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><div style={{fontSize:13,fontWeight:700,color:C.text}}>AI-Generated {active.label}</div><div style={{display:"flex",gap:7}}><Btn variant="ghost" size="sm" onClick={saveOutput}>💾 Save</Btn><Btn variant="ghost" size="sm" onClick={download}>⬇️ Download</Btn><Btn variant="ghost" size="sm" onClick={()=>navigator.clipboard?.writeText(output)}>📋 Copy</Btn><Btn variant="ghost" size="sm" onClick={()=>setOutput("")}>Clear</Btn></div></div>{savedOutputs[active.id]&&<div style={{padding:"5px 10px",borderRadius:7,background:"rgba(52,211,153,0.1)",border:`1px solid ${C.green}33`,fontSize:11,color:C.green,marginBottom:10}}>✓ Saved {savedOutputs[active.id].date}</div>}<div style={{fontSize:13,color:C.text,lineHeight:1.9,whiteSpace:"pre-wrap",maxHeight:640,overflowY:"auto"}}>{output}</div></Card>
+        :<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:460,background:C.bgCard,borderRadius:14,border:`1px solid ${C.border}`,textAlign:"center",padding:28}}><div style={{width:70,height:70,borderRadius:18,background:active.color+"16",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:16}}><SI name={active.icon} size={32} color={active.color}/></div><h3 style={{fontFamily:SORA,fontSize:17,fontWeight:700,color:C.text,marginBottom:7}}>{active.label}</h3><p style={{fontSize:12,color:C.textMuted,maxWidth:280,marginBottom:16,lineHeight:1.7}}>{active.desc}</p>{loading?<div style={{display:"flex",alignItems:"center",gap:9}}><div style={{width:22,height:22,border:`2px solid ${active.color}`,borderTopColor:"transparent",borderRadius:"50%",animation:"spin 1s linear infinite"}}/><span style={{fontSize:13,color:C.textSub}}>Generating {active.label}...</span></div>:<p style={{fontSize:11,color:C.textDim}}>Fill context on the left and click Generate</p>}</div>}</div>
+      </div>
+    </div>
+  );
+}
+
+// ── PROMPT STUDIO ─────────────────────────────────────────
+function PromptStudio(){
+  const[vals,setVals]=useState({C:"",R:"",E:"",A:"",T:""});
+  const[output,setOutput]=useState("");
+  const[loading,setLoading]=useState(false);
+  const handleChange=useCallback((field,val)=>setVals(p=>({...p,[field]:val})),[]);
+  const generate=async()=>{const prompt=Object.entries(vals).filter(([,v])=>v).map(([k,v])=>`[${k}] ${v}`).join(" ");if(!prompt.trim())return;setLoading(true);setOutput("");try{const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:900,messages:[{role:"user",content:`You are an expert business content writer using the C-R-E-A-T framework.\n\nPrompt: ${prompt}\n\nOutput only the content.`}]})});const d=await res.json();setOutput(d.content?.[0]?.text||"Error.");}catch{setOutput("Error.");}setLoading(false);};
+  return(<div><div style={{marginBottom:20}}><h2 style={{fontFamily:SORA,fontSize:22,fontWeight:800,color:C.text,marginBottom:4}}>⚡ Prompt Studio</h2><p style={{fontSize:14,color:C.textSub}}>Build powerful C-R-E-A-T prompts and generate professional AI content</p></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18}}><Card><div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:13}}>C-R-E-A-T Framework</div>{[{k:"C",label:"Context",hint:"Your business situation",ex:"I run an AI consultancy in Dubai..."},{k:"R",label:"Role",hint:"Expert persona",ex:"You are a senior B2B copywriter..."},{k:"E",label:"Execute",hint:"The specific task",ex:"Write a LinkedIn post..."},{k:"A",label:"Audience",hint:"Who reads this?",ex:"Business owners 30-50 in UAE..."},{k:"T",label:"Tone",hint:"How it sounds",ex:"Confident, forward-thinking, urgent"}].map(f=><TF key={f.k} label={`[${f.k}] ${f.label} — ${f.hint}`} field={f.k} placeholder={f.ex} value={vals[f.k]} onChange={handleChange}/>)}<Btn onClick={generate} disabled={loading} style={{width:"100%",justifyContent:"center",marginTop:7}}>{loading?"⏳ Generating...":"🚀 Generate Content"}</Btn></Card><div>{output?<Card><div style={{fontSize:12,fontWeight:700,color:C.green,marginBottom:10}}>✓ Generated Output</div><div style={{fontSize:13,color:C.text,lineHeight:1.85,whiteSpace:"pre-wrap",maxHeight:450,overflowY:"auto"}}>{output}</div><div style={{display:"flex",gap:7,marginTop:12}}><Btn variant="ghost" size="sm" onClick={()=>navigator.clipboard?.writeText(output)}>📋 Copy</Btn><Btn variant="ghost" size="sm" onClick={()=>setOutput("")}>Clear</Btn></div></Card>:<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:280,background:C.bgCard,borderRadius:14,border:`1px solid ${C.border}`,textAlign:"center",padding:28}}><div style={{fontSize:44,marginBottom:10,opacity:.25}}>💬</div><p style={{fontSize:13,color:C.textMuted}}>Fill the C-R-E-A-T fields and generate</p></div>}</div></div></div>);
+}
+
+// ── ROI CALCULATOR ────────────────────────────────────────
+function Calculator(){
+  const[inp,setInp]=useState({headcount:10,avgSalary:60000,timeSaved:15,toolCost:500,implementCost:5000,revenueUplift:2});
+  const tS=inp.headcount*inp.avgSalary*(inp.timeSaved/100),tC=inp.toolCost*12+inp.implementCost,rG=inp.headcount*inp.avgSalary*(inp.revenueUplift/100),ben=tS+rG,net=ben-tC,roi=tC>0?(net/tC)*100:0,pay=tC>0&&ben>0?(tC/ben*12):0;
+  const N=(label,key,opts={})=>(<div style={{marginBottom:13}}><label style={{fontSize:10,fontWeight:700,color:C.textMuted,display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:.5}}>{label}</label><input type="number" value={inp[key]} onChange={e=>setInp(s=>({...s,[key]:parseFloat(e.target.value)||0}))} style={{width:"100%",padding:"9px 12px",borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.05)",color:C.text,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:SANS}} {...opts}/></div>);
+  const M=(label,val,color,pre="",suf="")=>(<div style={{background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,borderRadius:11,padding:"13px 15px",textAlign:"center"}}><div style={{fontSize:10,color:C.textMuted,marginBottom:5,fontWeight:600,textTransform:"uppercase"}}>{label}</div><div style={{fontSize:19,fontWeight:800,fontFamily:SORA,color}}>{pre}{typeof val==="number"?val.toLocaleString(undefined,{maximumFractionDigits:0}):val}{suf}</div></div>);
+  return(<div><div style={{marginBottom:18}}><h2 style={{fontFamily:SORA,fontSize:22,fontWeight:800,color:C.text,marginBottom:4}}>📊 AI ROI Calculator</h2><p style={{fontSize:14,color:C.textSub}}>Calculate the financial return on your AI investment</p></div><div style={{display:"grid",gridTemplateColumns:"1fr 1.3fr",gap:22}}><Card><div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:12}}>Input Parameters</div>{N("Team Size (FTE)","headcount")}{N("Avg Annual Salary ($)","avgSalary")}{N("% Time Saved","timeSaved",{min:0,max:100})}{N("% Revenue Uplift","revenueUplift",{min:0,max:100})}{N("Monthly AI Tool Cost ($)","toolCost")}{N("One-time Implementation ($)","implementCost")}</Card><div><div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:12}}>Results</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:14}}>{M("Annual Benefit",ben,C.green,"$")}{M("Annual Cost",tC,C.coral,"$")}{M("Net Benefit",net,net>=0?C.teal:C.coral,"$")}{M("ROI",roi.toFixed(0),C.blue,"","%")}{M("Payback",pay.toFixed(1),C.purple,"","mo")}{M("3-Year Net",net*2+ben,C.indigo,"$")}</div><Card style={{background:"rgba(79,142,247,0.08)",border:`1px solid rgba(79,142,247,0.2)`}}><div style={{fontSize:12,fontWeight:700,color:C.blue,marginBottom:7}}>💡 Key Insight</div><p style={{fontSize:13,color:C.textSub,lineHeight:1.7}}>{roi>200?"🚀 Exceptional ROI — AI pays for itself rapidly.":roi>100?"✅ Strong ROI above industry average.":roi>0?"📈 Positive ROI — scale AI adoption to increase returns.":"⚠️ Negative ROI — review costs or increase savings."}</p></Card></div></div></div>);
+}
+
+// ── JOURNAL ───────────────────────────────────────────────
+function Journal(){
+  const today=new Date().toISOString().split("T")[0];
+  const[entries,setEntries]=useState({});const[sel,setSel]=useState(today);
+  const[wins,setWins]=useState("");const[focus,setFocus]=useState("");const[blocked,setBlocked]=useState("");const[notes,setNotes]=useState("");const[revenue,setRevenue]=useState("");const[mood,setMood]=useState(3);const[aiOut,setAiOut]=useState("");const[loading,setLoading]=useState(false);const[saved,setSaved]=useState(false);
+  const save=()=>{setEntries(p=>({...p,[sel]:{wins,focus,blocked,notes,revenue,mood}}));setSaved(true);setTimeout(()=>setSaved(false),2000);};
+  const analyse=async()=>{setLoading(true);setAiOut("");try{const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:600,messages:[{role:"user",content:`You are an elite business coach. Analyse this journal:\nRevenue: ${revenue}\nWins: ${wins}\nFocus: ${focus}\nBlockers: ${blocked}\nNotes: ${notes}\n\n1. TOP 3 ACTIONABLE INSIGHTS\n2. THE ONE THING for tomorrow\n3. RISK ALERT\n4. MOMENTUM BUILDER\n\nBe direct and specific.`}]})});const d=await res.json();setAiOut(d.content?.[0]?.text||"Error.");}catch{setAiOut("Error.");}setLoading(false);};
+  const week=[];for(let i=-6;i<=0;i++){const d=new Date();d.setDate(d.getDate()+i);week.push(d.toISOString().split("T")[0]);}
+  const MOODS=["","😔","😐","🙂","😊","🚀"];
+  const TA=({val,set,ph})=>(<textarea value={val} onChange={e=>set(e.target.value)} placeholder={ph} rows={3} style={{width:"100%",background:"rgba(255,255,255,0.04)",border:`1px solid ${C.border}`,color:C.text,fontSize:13,resize:"none",outline:"none",fontFamily:SANS,lineHeight:1.7,padding:"9px 11px",borderRadius:8,boxSizing:"border-box"}}/>);
+  return(<div><div style={{marginBottom:18}}><h2 style={{fontFamily:SORA,fontSize:22,fontWeight:800,color:C.text,marginBottom:4}}>📔 Business Journal</h2><p style={{fontSize:14,color:C.textSub}}>Daily tracking with AI coaching</p></div>
+  <div style={{display:"flex",gap:7,marginBottom:16,overflowX:"auto",paddingBottom:4}}>{week.map(d=>{const has=!!entries[d];const isT=d===today;const isSel=d===sel;const obj=new Date(d+"T12:00:00");return(<div key={d} onClick={()=>setSel(d)} style={{background:isSel?"rgba(59,130,246,.25)":has?"rgba(16,185,129,.08)":"rgba(255,255,255,.04)",border:`1.5px solid ${isSel?C.blue:has?C.green+"66":C.border}`,borderRadius:11,padding:"9px 14px",cursor:"pointer",textAlign:"center",flexShrink:0,minWidth:54}}><div style={{fontSize:9,color:C.textMuted,marginBottom:1}}>{obj.toLocaleDateString("en",{weekday:"short"})}</div><div style={{fontSize:16,fontWeight:800,color:isSel?C.blue:C.text}}>{obj.getDate()}</div>{has&&<div style={{fontSize:10,marginTop:1}}>{MOODS[entries[d]?.mood||3]}</div>}{isT&&<div style={{fontSize:7,color:C.amber,fontWeight:700,marginTop:1}}>TODAY</div>}</div>);})}</div>
+  <div style={{display:"grid",gridTemplateColumns:"1fr 280px",gap:16}}><div>
+    <Card style={{marginBottom:12}}><div style={{fontSize:11,fontWeight:700,color:C.textSub,marginBottom:8}}>MOOD & REVENUE</div><div style={{display:"flex",gap:7,alignItems:"center"}}>{[1,2,3,4,5].map(m=><button key={m} onClick={()=>setMood(m)} style={{width:36,height:36,borderRadius:9,fontSize:17,border:`2px solid ${mood===m?C.teal:C.border}`,background:mood===m?"rgba(45,212,191,.2)":"transparent"}}>{MOODS[m]}</button>)}<input value={revenue} onChange={e=>setRevenue(e.target.value)} placeholder="Revenue today ($)" style={{marginLeft:8,flex:1,padding:"8px 11px",borderRadius:8,border:`1px solid ${C.border}`,background:"rgba(255,255,255,0.04)",color:C.text,fontSize:13,outline:"none",fontFamily:SANS}}/></div></Card>
+    {[{label:"🏆 Today's Wins",val:wins,set:setWins,ph:"What went well?"},{label:"🎯 Main Focus",val:focus,set:setFocus,ph:"Your #1 priority?"},{label:"🚧 Blockers",val:blocked,set:setBlocked,ph:"What's slowing you down?"},{label:"📝 Notes",val:notes,set:setNotes,ph:"Free thoughts, ideas..."}].map(f=>(<Card key={f.label} style={{marginBottom:10,padding:13}}><div style={{fontSize:11,fontWeight:700,color:C.textSub,marginBottom:7}}>{f.label}</div><TA val={f.val} set={f.set} ph={f.ph}/></Card>))}
+    <div style={{display:"flex",gap:9}}><Btn onClick={save}>{saved?"✓ Saved!":"💾 Save Entry"}</Btn><Btn onClick={analyse} variant="ghost" disabled={loading}>{loading?"⏳...":"🧠 AI Coach"}</Btn></div>
+    {aiOut&&<Card style={{marginTop:12,background:"rgba(139,92,246,.08)",border:`1px solid ${C.purple}33`}}><div style={{fontSize:12,fontWeight:700,color:C.purple,marginBottom:9}}>🤖 AI Business Coach</div><div style={{fontSize:13,color:C.text,lineHeight:1.85,whiteSpace:"pre-wrap"}}>{aiOut}</div></Card>}
+  </div><div><Card><div style={{fontSize:11,fontWeight:700,color:C.textMuted,marginBottom:11}}>📅 RECENT ENTRIES</div>{Object.keys(entries).length===0?<p style={{fontSize:12,color:C.textMuted,textAlign:"center",padding:"14px 0"}}>No entries yet.</p>:Object.keys(entries).sort((a,b)=>b.localeCompare(a)).slice(0,8).map(d=>{const e=entries[d];return(<div key={d} onClick={()=>setSel(d)} style={{padding:"8px 9px",borderRadius:8,cursor:"pointer",marginBottom:4,background:sel===d?"rgba(59,130,246,.15)":"rgba(255,255,255,.03)",border:`1px solid ${sel===d?C.blue:C.border}`}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:1}}><div style={{fontSize:11,fontWeight:600,color:C.text}}>{new Date(d+"T12:00:00").toLocaleDateString("en",{weekday:"short",month:"short",day:"numeric"})}</div><div style={{display:"flex",alignItems:"center",gap:3}}><span style={{fontSize:11}}>{MOODS[e.mood||3]}</span>{e.revenue&&<span style={{fontSize:9,color:C.green,fontWeight:700}}>${e.revenue}</span>}</div></div>{e.wins&&<div style={{fontSize:10,color:C.textSub,overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>🏆 {e.wins}</div>}</div>);})}</Card></div></div></div>);
+}
+
+// ── LESSON VIEWER ─────────────────────────────────────────
+function LessonViewer({module:mod,lessonIdx,onBack,onNext,onPrev}){
+  const lesson=mod.lessons[lessonIdx];const isLast=lessonIdx===mod.lessons.length-1;const[quizAns,setQuizAns]=useState({});const[submitted,setSubmitted]=useState(false);const[score,setScore]=useState(0);
+  useEffect(()=>{setQuizAns({});setSubmitted(false);setScore(0);},[lessonIdx]);
+  const submitQuiz=()=>{let s=0;lesson.questions.forEach((q,i)=>{if(quizAns[i]===q.ans)s++;});setScore(s);setSubmitted(true);};
+  return(<div style={{maxWidth:800,margin:"0 auto"}}><div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18,flexWrap:"wrap"}}><button onClick={onBack} style={{padding:"7px 14px",borderRadius:8,background:"rgba(255,255,255,0.06)",border:`1px solid ${C.border}`,color:C.textSub,fontSize:13}}>← Modules</button><span style={{color:C.textMuted}}>›</span><span style={{fontSize:13,color:C.text}}>{mod.title}</span><div style={{marginLeft:"auto",display:"flex",gap:4}}>{mod.lessons.map((_,i)=><div key={i} style={{width:22,height:4,borderRadius:2,background:i===lessonIdx?mod.color:i<lessonIdx?mod.color+"55":"rgba(255,255,255,.1)"}}/>)}</div></div>
+  <Card style={{marginBottom:14}}><div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18}}><span style={{padding:"4px 12px",borderRadius:20,fontSize:11,fontWeight:700,background:lesson.type==="quiz"?C.purple+"22":lesson.type==="video"?C.coral+"22":C.blue+"22",color:lesson.type==="quiz"?C.purple:lesson.type==="video"?C.coral:C.blue}}>{lesson.type==="quiz"?"📝 Quiz":lesson.type==="video"?"▶ Video":"📖 Reading"}</span><span style={{fontSize:12,color:C.textSub}}>{lesson.dur}</span><span style={{marginLeft:"auto",fontSize:11,color:C.textMuted}}>{lessonIdx+1}/{mod.lessons.length}</span></div>
+  <h2 style={{fontSize:19,fontWeight:800,color:C.text,margin:"0 0 14px",letterSpacing:"-0.3px"}}>{lesson.title}</h2>
+  {lesson.type!=="quiz"&&<div>{lesson.body&&<p style={{fontSize:14,color:C.textSub,lineHeight:1.9,marginBottom:18}}>{lesson.body}</p>}{lesson.myths&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:11,marginBottom:14}}><div style={{background:"rgba(251,113,133,.08)",border:`1px solid ${C.coral}33`,borderRadius:11,padding:13}}><div style={{fontSize:11,fontWeight:700,color:C.coral,marginBottom:7}}>❌ MYTHS</div>{lesson.myths.map((m,i)=><div key={i} style={{fontSize:12,color:C.textSub,padding:"5px 0",borderBottom:`1px solid rgba(255,255,255,.05)`}}>{m.m}</div>)}</div><div style={{background:"rgba(52,211,153,.08)",border:`1px solid ${C.green}33`,borderRadius:11,padding:13}}><div style={{fontSize:11,fontWeight:700,color:C.green,marginBottom:7}}>✓ REALITY</div>{lesson.myths.map((m,i)=><div key={i} style={{fontSize:12,color:C.textSub,padding:"5px 0",borderBottom:`1px solid rgba(255,255,255,.05)`}}>{m.r}</div>)}</div></div>}{lesson.times&&<div style={{background:"rgba(255,255,255,.03)",border:`1px solid ${C.border}`,borderRadius:11,padding:14,marginBottom:14}}><div style={{fontSize:11,fontWeight:700,color:C.textSub,marginBottom:10}}>⏱ TIME SAVINGS</div>{lesson.times.map((t,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:9,marginBottom:7,padding:"7px 0",borderBottom:`1px solid ${C.border}`}}><div style={{fontSize:12,fontWeight:600,color:C.text,width:130,flexShrink:0}}>{t.task}</div><span style={{fontSize:11,color:C.textMuted}}>{t.before}min</span><span style={{color:C.textMuted}}>→</span><span style={{fontSize:12,fontWeight:700,color:C.teal}}>{t.after}min</span><span style={{fontSize:11,color:C.green,fontWeight:700,background:"rgba(16,185,129,.15)",padding:"2px 7px",borderRadius:5}}>{Math.round(t.before/t.after)}×</span></div>)}</div>}{lesson.tools&&<div style={{background:"rgba(255,255,255,.03)",border:`1px solid ${C.border}`,borderRadius:11,padding:14,marginBottom:14,overflowX:"auto"}}><div style={{fontSize:11,fontWeight:700,color:C.textSub,marginBottom:10}}>TOOL COMPARISON</div><table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}><thead><tr style={{borderBottom:`1px solid ${C.border}`}}>{["Tool","Best For","Price","Ease","Power"].map(h=><th key={h} style={{padding:"7px 9px",color:C.textMuted,textAlign:"left",fontSize:11}}>{h}</th>)}</tr></thead><tbody>{lesson.tools.map((t,i)=><tr key={i} style={{borderBottom:`1px solid rgba(255,255,255,.04)`}}><td style={{padding:"8px 9px",fontWeight:700,color:C.text}}>{t.n}</td><td style={{padding:"8px 9px",color:C.textSub}}>{t.role}</td><td style={{padding:"8px 9px",color:C.green}}>{t.price}</td><td style={{padding:"8px 9px"}}>{"★".repeat(t.ease)}</td><td style={{padding:"8px 9px"}}>{"★".repeat(t.power)}</td></tr>)}</tbody></table></div>}{lesson.points&&lesson.points.length>0&&<div style={{background:"rgba(59,130,246,.06)",border:`1px solid rgba(59,130,246,.2)`,borderRadius:11,padding:14}}><div style={{fontSize:11,fontWeight:700,color:C.blue,marginBottom:9}}>🔑 KEY TAKEAWAYS</div>{lesson.points.map((p,i)=><div key={i} style={{display:"flex",gap:9,marginBottom:7}}><span style={{color:mod.color,fontWeight:700,fontSize:13,flexShrink:0}}>✓</span><span style={{fontSize:13,color:C.text,lineHeight:1.65}}>{p}</span></div>)}</div>}</div>}
+  {lesson.type==="quiz"&&<div>{!submitted?<><p style={{fontSize:13,color:C.textSub,marginBottom:18}}>Answer all {lesson.questions.length} questions. You need 75% to pass.</p>{lesson.questions.map((q,qi)=>(<div key={qi} style={{marginBottom:20}}><div style={{fontSize:14,fontWeight:600,color:C.text,marginBottom:9}}>{qi+1}. {q.q}</div>{q.opts.map((opt,oi)=><div key={oi} onClick={()=>setQuizAns(a=>({...a,[qi]:oi}))} style={{padding:"10px 15px",borderRadius:9,marginBottom:5,cursor:"pointer",border:`1.5px solid ${quizAns[qi]===oi?mod.color:C.border}`,background:quizAns[qi]===oi?mod.color+"15":"rgba(255,255,255,.03)",fontSize:13,color:C.text}}><span style={{fontWeight:700,color:mod.color,marginRight:9}}>{String.fromCharCode(65+oi)}.</span>{opt}</div>)}</div>))}<Btn onClick={submitQuiz} disabled={Object.keys(quizAns).length<lesson.questions.length}>Submit Quiz →</Btn></>:<div style={{textAlign:"center",padding:"20px 0"}}><div style={{fontSize:52,marginBottom:10}}>{score>=Math.ceil(lesson.questions.length*.75)?"🎉":"😅"}</div><div style={{fontSize:22,fontWeight:800,color:C.text,marginBottom:7}}>{score}/{lesson.questions.length} Correct</div><div style={{fontSize:14,color:score>=Math.ceil(lesson.questions.length*.75)?C.green:C.coral}}>{score>=Math.ceil(lesson.questions.length*.75)?"Excellent! Module complete — XP earned!":"Review the lesson and try again."}</div></div>}</div>}
+  </Card>
+  <div style={{display:"flex",justifyContent:"space-between"}}><button onClick={onPrev} disabled={lessonIdx===0} style={{padding:"9px 20px",borderRadius:11,border:`1px solid ${C.border}`,background:"rgba(255,255,255,0.06)",color:C.textSub,fontSize:13,opacity:lessonIdx===0?.4:1}}>← Previous</button><button onClick={onNext} style={{padding:"9px 20px",borderRadius:11,border:"none",background:C.grad1,color:"#fff",fontSize:13,fontWeight:700,boxShadow:"0 4px 16px rgba(79,142,247,0.35)"}}>{isLast?"Complete Module":"Next Lesson →"}</button></div>
+  </div>);
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────
+function Dashboard({user,progress,xp,onModule,onNav}){
+  const completed=Object.keys(progress).filter(k=>progress[k]?.completed).length;
+  const pct=Math.round((completed/MODULES.length)*100);
+  const totalLessons=Object.values(progress).reduce((a,m)=>a+(m?.lessons||0),0);
+  const quizzes=Object.values(progress).filter(m=>m?.quizPassed).length;
+  const level=xp<200?"Explorer":xp<500?"Practitioner":xp<700?"Strategist":"AI Leader";
+  const levelColor={Explorer:C.textSub,Practitioner:C.blue,Strategist:C.purple,["AI Leader"]:C.amber}[level];
+  const quickTools=[{icon:"media",label:"Media Library",nav:"media",color:C.blue,desc:"3 sessions · slides & infographics"},{icon:"swot",label:"SWOT Analysis",nav:"kit",color:C.teal,desc:"AI-powered strategic analysis"},{icon:"pitch",label:"Pitch Deck",nav:"kit",color:C.purple,desc:"Investor-ready in minutes"},{icon:"spark2",label:"Prompt Studio",nav:"prompts",color:C.indigo,desc:"Build powerful AI prompts"},{icon:"dollar",label:"ROI Calculator",nav:"calc",color:C.green,desc:"Measure your AI investment"},{icon:"note",label:"Journal",nav:"journal",color:C.coral,desc:"Daily tracking & AI coaching"}];
+  return(<div style={{animation:"fadeUp 0.4s ease"}}>
+    <div style={{position:"relative",overflow:"hidden",borderRadius:20,padding:"30px 34px",marginBottom:22,background:"linear-gradient(135deg,rgba(13,21,53,0.95),rgba(30,15,60,0.95))",border:`1px solid ${C.borderMid}`}}>
+      <div style={{position:"absolute",top:-50,right:-50,width:260,height:260,borderRadius:"50%",background:"radial-gradient(circle,rgba(167,139,250,0.15),transparent 70%)",pointerEvents:"none"}}/>
+      <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(255,255,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.02) 1px,transparent 1px)",backgroundSize:"40px 40px",borderRadius:20,pointerEvents:"none"}}/>
+      <div style={{position:"relative",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:18}}>
+        <div style={{flex:1}}>
+          <div style={{display:"inline-flex",alignItems:"center",gap:6,padding:"4px 12px",borderRadius:100,marginBottom:12,background:"rgba(79,142,247,0.12)",border:"1px solid rgba(79,142,247,0.25)"}}><div style={{width:6,height:6,borderRadius:"50%",background:C.blue,boxShadow:`0 0 6px ${C.blue}`,animation:"pulse 2s infinite"}}/><span style={{fontSize:11,color:C.blue,fontWeight:600,letterSpacing:"0.05em"}}>WELCOME BACK</span></div>
+          <h1 style={{fontFamily:SORA,fontSize:26,fontWeight:800,letterSpacing:"-0.5px",color:C.text,marginBottom:7}}>{user?.name}</h1>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}><span style={{padding:"3px 10px",borderRadius:100,fontSize:11,fontWeight:700,background:levelColor+"18",color:levelColor,border:`1px solid ${levelColor}33`}}>{level}</span></div>
+          <div style={{display:"flex",alignItems:"center",gap:11,maxWidth:360}}><div style={{flex:1,height:5,background:"rgba(255,255,255,0.08)",borderRadius:10,overflow:"hidden"}}><div style={{height:5,width:`${Math.min(100,(xp/TOTAL_XP)*100)}%`,background:C.grad1,borderRadius:10,transition:"width .6s",boxShadow:"0 0 8px rgba(79,142,247,0.5)"}}/></div><span style={{fontSize:11,color:C.blue,fontWeight:700,whiteSpace:"nowrap"}}>{xp}/{TOTAL_XP} XP</span></div>
+        </div>
+        <Donut value={pct} max={100} color={C.teal} size={92} label={`${completed}/${MODULES.length} modules`}/>
+      </div>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:11,marginBottom:22}}>{[{label:"XP Earned",value:xp,color:C.amber},{label:"Lessons Done",value:totalLessons,color:C.teal},{label:"Quizzes Passed",value:quizzes,color:C.green},{label:"Kit Tools",value:"14",color:C.purple}].map(s=><StatPill key={s.label} {...s}/>)}</div>
+    <div style={{marginBottom:22}}><div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}><h3 style={{fontFamily:SORA,fontSize:15,fontWeight:700,color:C.text}}>🛠️ Quick Access</h3><div style={{flex:1,height:1,background:C.border}}/></div><div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:9}}>{quickTools.map(tool=>(<div key={tool.label} onClick={()=>onNav(tool.nav)} style={{padding:16,borderRadius:14,cursor:"pointer",background:C.bgCard,border:`1px solid ${C.border}`,transition:"all .2s",position:"relative",overflow:"hidden"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=tool.color+"55";e.currentTarget.style.transform="translateY(-2px)";}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.transform="translateY(0)";}}>
+      <div style={{position:"absolute",top:-15,right:-15,width:70,height:70,borderRadius:"50%",background:`radial-gradient(circle,${tool.color}12,transparent 70%)`,pointerEvents:"none"}}/>
+      <div style={{width:38,height:38,borderRadius:10,marginBottom:10,background:`${tool.color}20`,border:`1px solid ${tool.color}25`,display:"flex",alignItems:"center",justifyContent:"center"}}><SI name={tool.icon} size={17} color={tool.color}/></div>
+      <div style={{fontFamily:SORA,fontSize:12,fontWeight:700,color:C.text,marginBottom:3}}>{tool.label}</div>
+      <div style={{fontSize:11,color:C.textMuted,lineHeight:1.5}}>{tool.desc}</div>
+    </div>))}</div></div>
+    <div><div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}><h3 style={{fontFamily:SORA,fontSize:15,fontWeight:700,color:C.text}}>📚 Learning Path</h3><div style={{flex:1,height:1,background:C.border}}/></div><div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:11}}>{MODULES.map(mod=>{const prog=progress[mod.id]||{};const done=prog.completed;const lp=prog.lessons?Math.round((prog.lessons/mod.lessons.length)*100):0;return(<div key={mod.id} onClick={()=>onModule(mod)} style={{padding:18,borderRadius:14,cursor:"pointer",background:C.bgCard,border:`1px solid ${done?mod.color+"44":C.border}`,transition:"all .2s",position:"relative",overflow:"hidden"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=mod.color+"66";e.currentTarget.style.transform="translateY(-2px)";}} onMouseLeave={e=>{e.currentTarget.style.borderColor=done?mod.color+"44":C.border;e.currentTarget.style.transform="translateY(0)";}}>
+      {done&&<div style={{position:"absolute",top:0,left:0,right:0,height:2,background:`linear-gradient(90deg,transparent,${mod.color},transparent)`}}/>}
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:12}}><div style={{display:"flex",alignItems:"center",gap:9}}><div style={{width:40,height:40,borderRadius:11,flexShrink:0,background:mod.color+"14",display:"flex",alignItems:"center",justifyContent:"center",border:`1px solid ${mod.color}22`}}><SI name={mod.icon} size={19} color={done?mod.color:"rgba(255,255,255,0.6)"}/></div><div><div style={{fontFamily:SORA,fontSize:12,fontWeight:700,color:C.text,marginBottom:2}}>{mod.title}</div><div style={{fontSize:11,color:C.textMuted}}>{mod.sub}</div></div></div>{done&&<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2"><polyline points="20,6 9,17 4,12"/></svg>}</div>
+      <div style={{display:"flex",gap:5,marginBottom:10,flexWrap:"wrap"}}><Badge label={`${mod.lessons.length} lessons`} color={mod.color}/><Badge label={`+${mod.xp} XP`} color={C.amber}/><Badge label="OPEN" color={C.green}/></div>
+      <div style={{height:3,background:"rgba(255,255,255,0.05)",borderRadius:10,overflow:"hidden"}}><div style={{height:3,width:`${lp}%`,background:mod.color,borderRadius:10,transition:"width .5s"}}/></div>
+      <div style={{fontSize:10,color:C.textMuted,marginTop:5}}>{done?"✓ Completed":lp>0?`${lp}% — continue`:"Click to begin"}</div>
+    </div>);})}</div></div>
+    <div style={{textAlign:"center",padding:"28px 0 6px",marginTop:28,borderTop:`1px solid ${C.border}`}}><p style={{fontSize:11,color:C.textDim}}>AI Business Academy · <span style={{background:C.gradText2,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",fontWeight:600}}>Designed & Built by Setana Ahmed</span></p></div>
+  </div>);
+}
+
+// ── REPORT GENERATOR ──────────────────────────────────────
+function ReportGenerator(){
+  const[repType,setRepType]=useState("business_performance");
+  const[company,setCompany]=useState("");const[period,setPeriod]=useState("Monthly");const[data,setData]=useState("");const[output,setOutput]=useState("");const[loading,setLoading]=useState(false);const[format,setFormat]=useState("executive");
+  const types=[{id:"business_performance",label:"Business Performance"},{id:"marketing",label:"Marketing Report"},{id:"ai_roi",label:"AI ROI Report"},{id:"competitor",label:"Competitor Analysis"},{id:"sales_forecast",label:"Sales Forecast"},{id:"customer_insights",label:"Customer Insights"},{id:"risk_assessment",label:"Risk Assessment"},{id:"strategy",label:"Strategy Brief"}];
+  const formats=[{id:"executive",label:"Executive Summary"},{id:"detailed",label:"Full Report"},{id:"presentation",label:"Slide Outline"},{id:"email",label:"Email Update"}];
+  const generate=async()=>{if(!company||!data)return;setLoading(true);setOutput("");const typeLabel=types.find(t=>t.id===repType)?.label;const fmtI={executive:"Write an executive summary — 3 paragraphs max, bullet key metrics, clear recommendations.",detailed:"Write a detailed report with: Executive Summary, Key Findings, Data Analysis, Recommendations, Next Steps.",presentation:"Write a presentation outline with 8-10 slide titles and 3 bullets per slide.",email:"Write a professional email update with subject line and action items."};try{const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1200,messages:[{role:"user",content:`You are a senior business analyst. Generate a professional ${typeLabel} report.\n\nCompany: ${company}\nPeriod: ${period}\nData: ${data}\n\nFormat: ${fmtI[format]}\n\nMake it professional, data-driven, and actionable.`}]})});const d=await res.json();setOutput(d.content?.[0]?.text||"Error.");}catch{setOutput("Error.");}setLoading(false);};
+  const download=()=>{if(!output)return;const blob=new Blob([output],{type:"text/plain"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`${company}-${repType}.txt`;a.click();URL.revokeObjectURL(url);};
+  return(<div><div style={{marginBottom:20}}><h2 style={{fontFamily:SORA,fontSize:22,fontWeight:800,color:C.text,marginBottom:4}}>📋 Report Generator</h2><p style={{fontSize:14,color:C.textSub}}>Generate professional business reports instantly</p></div>
+  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18}}>
+    <div><Card style={{marginBottom:12}}><div style={{fontSize:11,fontWeight:700,color:C.textSub,marginBottom:9}}>REPORT TYPE</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>{types.map(t=><button key={t.id} onClick={()=>setRepType(t.id)} style={{padding:"8px 10px",borderRadius:9,border:`1px solid ${repType===t.id?C.blue:C.border}`,background:repType===t.id?"rgba(79,142,247,0.2)":"rgba(255,255,255,.04)",color:repType===t.id?C.blue:C.textSub,fontSize:11,textAlign:"left",fontWeight:repType===t.id?700:400}}>{t.label}</button>)}</div></Card>
+    <Card style={{marginBottom:12}}><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:11}}><div><label style={{fontSize:10,fontWeight:700,color:C.textMuted,display:"block",marginBottom:4,textTransform:"uppercase"}}>COMPANY</label><input value={company} onChange={e=>setCompany(e.target.value)} placeholder="e.g. Creative Scale" style={{width:"100%",padding:"8px 11px",borderRadius:8,border:`1px solid ${C.border}`,background:"rgba(255,255,255,0.04)",color:C.text,fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:SANS}}/></div><div><label style={{fontSize:10,fontWeight:700,color:C.textMuted,display:"block",marginBottom:4,textTransform:"uppercase"}}>PERIOD</label><select value={period} onChange={e=>setPeriod(e.target.value)} style={{width:"100%",padding:"8px 11px",borderRadius:8,border:`1px solid ${C.border}`,background:"rgba(7,11,20,0.95)",color:C.text,fontSize:13,outline:"none"}}>{["Daily","Weekly","Monthly","Quarterly","Annual"].map(p=><option key={p}>{p}</option>)}</select></div></div><label style={{fontSize:10,fontWeight:700,color:C.textMuted,display:"block",marginBottom:4,textTransform:"uppercase"}}>DATA & CONTEXT</label><textarea value={data} onChange={e=>setData(e.target.value)} rows={5} placeholder="Paste your data, notes, metrics here..." style={{width:"100%",padding:"8px 11px",borderRadius:8,border:`1px solid ${C.border}`,background:"rgba(255,255,255,0.04)",color:C.text,fontSize:13,outline:"none",boxSizing:"border-box",resize:"vertical",fontFamily:SANS,lineHeight:1.7}}/></Card>
+    <Card style={{marginBottom:12}}><div style={{fontSize:11,fontWeight:700,color:C.textSub,marginBottom:8}}>OUTPUT FORMAT</div><div style={{display:"flex",gap:7,flexWrap:"wrap"}}>{formats.map(f=><button key={f.id} onClick={()=>setFormat(f.id)} style={{padding:"6px 13px",borderRadius:20,border:"none",fontSize:11,background:format===f.id?C.grad2:"rgba(255,255,255,.06)",color:format===f.id?"#fff":C.textSub,fontWeight:format===f.id?700:400}}>{f.label}</button>)}</div></Card>
+    <Btn onClick={generate} disabled={!company||!data||loading} style={{width:"100%",justifyContent:"center"}}>{loading?"⏳ Generating...":"📋 Generate Report"}</Btn></div>
+    <div>{output?<Card style={{position:"sticky",top:18}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:11}}><div style={{fontSize:13,fontWeight:700,color:C.green}}>✓ Generated Report</div><div style={{display:"flex",gap:6}}><Btn variant="ghost" size="sm" onClick={download}>⬇️ Download</Btn><Btn variant="ghost" size="sm" onClick={()=>navigator.clipboard?.writeText(output)}>📋 Copy</Btn><Btn variant="ghost" size="sm" onClick={()=>setOutput("")}>Clear</Btn></div></div><div style={{fontSize:13,color:C.text,lineHeight:1.85,whiteSpace:"pre-wrap",maxHeight:560,overflowY:"auto"}}>{output}</div></Card>:<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:360,background:C.bgCard,borderRadius:14,border:`1px solid ${C.border}`,textAlign:"center",padding:28}}><div style={{fontSize:44,marginBottom:10,opacity:.2}}>📋</div><p style={{fontSize:13,color:C.textMuted}}>Your report will appear here</p></div>}</div>
+  </div></div>);
+}
+
+// ── BUSINESS PROFILE ──────────────────────────────────────
+function BusinessProfile({user,progress,xp}){
+  const[editMode,setEditMode]=useState(false);
+  const[biz,setBiz]=useState({name:"",industry:"",stage:"Startup",founded:"",location:"",website:"",email:"",phone:"",tagline:"",description:"",mission:"",vision:"",revenue:"",mrr:"",arr:"",customers:"",team:"",runway:"",model:"",channels:"",valuation:"",problem:"",solution:"",usp:"",targetMarket:"",marketSize:"",linkedin:"",instagram:"",facebook:"",twitter:""});
+  const[saved,setSaved]=useState(false);
+  const save=()=>{setSaved(true);setTimeout(()=>setSaved(false),2500);setEditMode(false);};
+  const completed=Object.keys(progress).filter(k=>progress[k]?.completed).length;
+  const totalLessons=Object.values(progress).reduce((a,m)=>a+(m?.lessons||0),0);
+  const quizzes=Object.values(progress).filter(m=>m?.quizPassed).length;
+  const level=xp<200?"Explorer":xp<500?"Practitioner":xp<700?"Strategist":"AI Leader";
+  const levelColor={Explorer:C.textSub,Practitioner:C.blue,Strategist:C.purple,["AI Leader"]:C.amber}[level];
+  const handleBiz=useCallback((field,val)=>setBiz(p=>({...p,[field]:val})),[]);
+  const BF=({label,field,placeholder,large=false})=>(<div style={{marginBottom:13}}><label style={{fontSize:10,fontWeight:700,color:C.textMuted,display:"block",marginBottom:4,textTransform:"uppercase",letterSpacing:"0.08em"}}>{label}</label>{editMode?(large?<textarea value={biz[field]} onChange={e=>handleBiz(field,e.target.value)} placeholder={placeholder} rows={2} style={{width:"100%",padding:"8px 11px",borderRadius:8,border:`1px solid ${C.border}`,background:"rgba(255,255,255,0.04)",color:C.text,fontSize:13,outline:"none",boxSizing:"border-box",resize:"none",fontFamily:SANS,lineHeight:1.7}}/>:<input value={biz[field]} onChange={e=>handleBiz(field,e.target.value)} placeholder={placeholder} style={{width:"100%",padding:"8px 11px",borderRadius:8,border:`1px solid ${C.border}`,background:"rgba(255,255,255,0.04)",color:C.text,fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:SANS}}/>):<div style={{fontSize:13,color:biz[field]?C.text:C.textDim,lineHeight:1.6,minHeight:18}}>{biz[field]||<span style={{fontStyle:"italic",color:C.textDim}}>Not set</span>}</div>}</div>);
+  const stages=["Idea","Pre-Revenue","Startup","Growth","Scale-up","Series A+","Profitable SME","Enterprise"];
+  return(<div style={{maxWidth:980,margin:"0 auto"}}>
+    <div style={{position:"relative",overflow:"hidden",borderRadius:18,padding:"26px 30px",marginBottom:18,background:"linear-gradient(135deg,rgba(13,21,53,0.95),rgba(30,15,60,0.95))",border:`1px solid ${C.borderMid}`}}>
+      <div style={{position:"absolute",top:-30,right:-30,width:200,height:200,borderRadius:"50%",background:"radial-gradient(circle,rgba(167,139,250,0.15),transparent 70%)",pointerEvents:"none"}}/>
+      <div style={{position:"relative",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:14}}>
+        <div style={{display:"flex",alignItems:"center",gap:16}}><div style={{width:66,height:66,borderRadius:16,background:C.grad1,display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,boxShadow:"0 0 0 1px rgba(79,142,247,0.4),0 8px 28px rgba(79,142,247,0.25)"}}>{biz.name?biz.name[0].toUpperCase():"🏢"}</div><div><h2 style={{fontFamily:SORA,fontSize:20,fontWeight:800,color:C.text,marginBottom:3}}>{biz.name||user?.name+"'s Business"}</h2><div style={{fontSize:12,color:C.textSub,marginBottom:7}}>{biz.tagline||"Your business tagline here"}</div><div style={{display:"flex",gap:7,flexWrap:"wrap"}}>{biz.stage&&<Badge label={biz.stage} color={C.blue}/>}{biz.industry&&<Badge label={biz.industry} color={C.teal}/>}{biz.location&&<Badge label={"📍 "+biz.location} color={C.textSub}/>}<Badge label={level} color={levelColor}/></div></div></div>
+        <div style={{display:"flex",gap:8}}>{editMode?<><Btn onClick={save} size="sm">✓ Save</Btn><Btn onClick={()=>setEditMode(false)} variant="ghost" size="sm">Cancel</Btn></>:<Btn onClick={()=>setEditMode(true)} variant="ghost" size="sm">✏️ Edit Business Info</Btn>}</div>
+      </div>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:11,marginBottom:18}}>{[{label:"Modules Completed",value:`${completed}/${MODULES.length}`,color:C.amber},{label:"XP Earned",value:xp,color:C.purple},{label:"Lessons Done",value:totalLessons,color:C.teal},{label:"Quizzes Passed",value:quizzes,color:C.green}].map(s=><StatPill key={s.label} {...s}/>)}</div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+      <div>
+        <Card style={{marginBottom:13}} accent={C.blue}><div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:14,display:"flex",alignItems:"center",gap:7}}><SI name="build" size={14} color={C.blue}/>Core Business Information</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 14px"}}><BF label="Business Name" field="name" placeholder="e.g. Creative Scale"/><BF label="Industry" field="industry" placeholder="e.g. AI Consulting"/><BF label="Founded Year" field="founded" placeholder="e.g. 2023"/><BF label="Location / HQ" field="location" placeholder="e.g. Dubai, UAE"/></div><div style={{marginBottom:13}}><label style={{fontSize:10,fontWeight:700,color:C.textMuted,display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.08em"}}>Business Stage</label>{editMode?<div style={{display:"flex",gap:5,flexWrap:"wrap"}}>{stages.map(s=><button key={s} onClick={()=>setBiz(b=>({...b,stage:s}))} style={{padding:"4px 11px",borderRadius:20,border:`1px solid ${biz.stage===s?C.blue:C.border}`,background:biz.stage===s?"rgba(79,142,247,0.2)":"rgba(255,255,255,0.04)",color:biz.stage===s?C.blue:C.textSub,fontSize:11,fontWeight:biz.stage===s?700:400}}>{s}</button>)}</div>:<div style={{fontSize:13,color:C.text}}>{biz.stage}</div>}</div><BF label="Website" field="website" placeholder="https://yoursite.com"/><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 14px"}}><BF label="Email" field="email" placeholder="hello@business.com"/><BF label="Phone" field="phone" placeholder="+971 XX XXX XXXX"/></div></Card>
+        <Card style={{marginBottom:13}} accent={C.purple}><div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:13,display:"flex",alignItems:"center",gap:7}}><SI name="spark2" size={14} color={C.purple}/>Purpose & Identity</div><BF label="Tagline / One-liner" field="tagline" placeholder="e.g. AI that grows your business, not your headcount"/><BF label="Business Description" field="description" placeholder="What do you do, who do you serve, how?" large/><BF label="Mission Statement" field="mission" placeholder="Why you exist" large/><BF label="Vision Statement" field="vision" placeholder="Where you're going in 5–10 years" large/></Card>
+        <Card style={{marginBottom:13}} accent={C.coral}><div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:13,display:"flex",alignItems:"center",gap:7}}><SI name="alert" size={14} color={C.coral}/>Problem & Solution</div><BF label="The Problem You Solve" field="problem" placeholder="What pain point does your customer have?" large/><BF label="Your Solution" field="solution" placeholder="How do you uniquely solve it?" large/><BF label="Unique Selling Proposition (USP)" field="usp" placeholder="Why you, and not anyone else?"/></Card>
+        <Card accent={C.teal}><div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:13,display:"flex",alignItems:"center",gap:7}}><SI name="globe" size={14} color={C.teal}/>Social Media</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 14px"}}><BF label="LinkedIn" field="linkedin" placeholder="linkedin.com/company/..."/><BF label="Instagram" field="instagram" placeholder="@yourhandle"/><BF label="Facebook" field="facebook" placeholder="facebook.com/..."/><BF label="Twitter / X" field="twitter" placeholder="@yourhandle"/></div></Card>
+      </div>
+      <div>
+        <Card style={{marginBottom:13}} accent={C.green}><div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:13,display:"flex",alignItems:"center",gap:7}}><SI name="dollar" size={14} color={C.green}/>Financial Metrics</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 14px"}}><BF label="Monthly Revenue (MRR)" field="mrr" placeholder="e.g. $12,000"/><BF label="Annual Revenue (ARR)" field="arr" placeholder="e.g. $144,000"/><BF label="Total Revenue (LTM)" field="revenue" placeholder="e.g. $180,000"/><BF label="Runway (months)" field="runway" placeholder="e.g. 18 months"/><BF label="Valuation" field="valuation" placeholder="e.g. $1.2M Pre-seed"/><BF label="Team Size" field="team" placeholder="e.g. 5 FTEs"/></div><BF label="Customers / Users" field="customers" placeholder="e.g. 34 paying clients"/></Card>
+        <Card style={{marginBottom:13}} accent={C.amber}><div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:13,display:"flex",alignItems:"center",gap:7}}><SI name="canvas" size={14} color={C.amber}/>Business Model</div><BF label="Revenue Model" field="model" placeholder="e.g. SaaS / Retainer / Project-based"/><BF label="Sales & Marketing Channels" field="channels" placeholder="e.g. LinkedIn, Referrals, Cold outreach" large/></Card>
+        <Card style={{marginBottom:13}} accent={C.teal}><div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:13,display:"flex",alignItems:"center",gap:7}}><SI name="persona" size={14} color={C.teal}/>Market & Customers</div><BF label="Target Market / ICP" field="targetMarket" placeholder="e.g. SME owners in UAE, 30-50" large/><BF label="Total Addressable Market (TAM)" field="marketSize" placeholder="e.g. $4.2B AI consulting GCC"/></Card>
+        <Card><div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:12}}>📚 Course Progress</div>{MODULES.map(mod=>{const prog=progress[mod.id]||{};const lp=prog.lessons?Math.round((prog.lessons/mod.lessons.length)*100):0;return(<div key={mod.id} style={{marginBottom:11}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><div style={{fontSize:12,color:C.text,display:"flex",alignItems:"center",gap:6}}><SI name={mod.icon} size={11} color={mod.color}/>{mod.title}{prog.completed&&<span style={{fontSize:9,color:C.green,fontWeight:700}}>✓</span>}</div><span style={{fontSize:11,color:mod.color,fontWeight:700}}>{lp}%</span></div><div style={{background:"rgba(255,255,255,.05)",borderRadius:4,height:3,overflow:"hidden"}}><div style={{height:3,width:`${lp}%`,background:mod.color,borderRadius:4,transition:"width .5s"}}/></div></div>);})}</Card>
+      </div>
+    </div>
+  </div>);
+}
+
+// ── ROOT APP ──────────────────────────────────────────────
+function App(){
+  const[user,setUser]=useState(null);
+  const[screen,setScreen]=useState("login");
+  const[progress,setProgress]=useState({});
+  const[xp,setXp]=useState(0);
+  const[activeMod,setActiveMod]=useState(null);
+  const[lessonIdx,setLessonIdx]=useState(0);
+
+  const goModule=mod=>{setActiveMod(mod);setLessonIdx(progress[mod.id]?.lessonIdx||0);setScreen("lesson");};
+  const goNext=()=>{const mod=activeMod;const prog=progress[mod.id]||{};const isLast=lessonIdx===mod.lessons.length-1;const nl=Math.max(prog.lessons||0,lessonIdx+1);let np={...prog,lessons:nl,lessonIdx};if(isLast&&!prog.completed){np.completed=true;setXp(x=>x+mod.xp);}setProgress(p=>({...p,[mod.id]:np}));if(lessonIdx<mod.lessons.length-1)setLessonIdx(i=>i+1);else setScreen("dashboard");};
+  const goPrev=()=>{if(lessonIdx>0)setLessonIdx(i=>i-1);};
+
+  if(!user||screen==="login") return <LoginScreen onLogin={u=>{setUser(u);setScreen("dashboard");}}/>;
+
+  const navItems=[{id:"dashboard",label:"Dashboard",icon:"🏠"},{id:"media",label:"Media Library",icon:"🎬"},{id:"kit",label:"Entrepreneur Kit",icon:"🚀"},{id:"tools",label:"AI Tools",icon:"🌐"},{id:"prompts",label:"Prompt Studio",icon:"⚡"},{id:"journal",label:"Journal",icon:"📔"},{id:"calc",label:"ROI Calc",icon:"📊"},{id:"reports",label:"Reports",icon:"📋"},{id:"profile",label:"Business Profile",icon:"🏢"}];
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,color:C.text,display:"flex"}}>
+      {/* SIDEBAR */}
+      <div style={{width:215,flexShrink:0,background:"rgba(5,8,16,0.98)",borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",position:"fixed",top:0,bottom:0,left:0,zIndex:50,backdropFilter:"blur(20px)"}}>
+        <div style={{padding:"16px 13px 14px",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:9}}>
+          <div style={{width:30,height:30,borderRadius:9,flexShrink:0,background:C.grad1,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 0 0 1px rgba(79,142,247,0.4),0 4px 14px rgba(79,142,247,0.25)"}}><SI name="sparkle" size={15} color="#fff"/></div>
+          <div><div style={{fontFamily:SORA,fontSize:12,fontWeight:800,color:C.text,letterSpacing:"-0.3px"}}>AI Academy</div><div style={{fontSize:9,color:C.textMuted}}>by Setana Ahmed</div></div>
+        </div>
+        <div style={{padding:"10px 8px",flex:1,overflowY:"auto"}}>
+          {navItems.map(item=>{const isActive=screen===item.id||(screen==="lesson"&&item.id==="dashboard");return(<div key={item.id} onClick={()=>setScreen(item.id)} style={{padding:"8px 11px",borderRadius:9,marginBottom:1,cursor:"pointer",display:"flex",alignItems:"center",gap:8,background:isActive?"rgba(79,142,247,0.12)":"transparent",border:`1px solid ${isActive?"rgba(79,142,247,0.25)":"transparent"}`,color:isActive?C.blue:C.textMuted,fontSize:12,fontWeight:isActive?600:400,transition:"all .15s",position:"relative"}}>{isActive&&<div style={{position:"absolute",left:-8,top:"50%",transform:"translateY(-50%)",width:3,height:14,borderRadius:9,background:C.blue,boxShadow:`0 0 7px ${C.blue}`}}/>}<span style={{fontSize:14}}>{item.icon}</span><span>{item.label}</span></div>);})}
+          <div style={{fontSize:9,fontWeight:700,color:C.textDim,padding:"14px 11px 5px",textTransform:"uppercase",letterSpacing:"0.12em"}}>Modules</div>
+          {MODULES.map(mod=>{const done=progress[mod.id]?.completed;const isAL=activeMod?.id===mod.id&&screen==="lesson";const prog=progress[mod.id];const pct=prog?.lessons?Math.round((prog.lessons/mod.lessons.length)*100):0;return(<div key={mod.id} onClick={()=>goModule(mod)} style={{padding:"6px 11px",borderRadius:7,marginBottom:1,cursor:"pointer",display:"flex",alignItems:"center",gap:7,background:isAL?"rgba(255,255,255,0.05)":"transparent",transition:"all .15s"}}><div style={{width:19,height:19,borderRadius:4,flexShrink:0,background:done?mod.color+"22":"rgba(255,255,255,0.05)",display:"flex",alignItems:"center",justifyContent:"center",border:done?`1px solid ${mod.color}44`:"1px solid rgba(255,255,255,0.06)"}}><SI name={mod.icon} size={10} color={done?mod.color:"rgba(255,255,255,0.45)"}/></div><div style={{flex:1,overflow:"hidden"}}><div style={{fontSize:10,fontWeight:isAL?600:400,color:isAL?C.text:C.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{mod.title}</div>{pct>0&&!done&&<div style={{height:2,background:"rgba(255,255,255,0.06)",borderRadius:2,marginTop:2,overflow:"hidden"}}><div style={{height:2,width:`${pct}%`,background:mod.color,borderRadius:2}}/></div>}</div>{done?<div style={{width:5,height:5,borderRadius:"50%",background:C.green,flexShrink:0}}/>:<div style={{fontSize:7,color:C.green,padding:"1px 4px",background:"rgba(52,211,153,0.1)",borderRadius:3,flexShrink:0,fontWeight:700}}>OPEN</div>}</div>);})}
+        </div>
+        <div style={{borderTop:`1px solid ${C.border}`}}>
+          <div style={{padding:"9px 13px"}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontSize:9,color:C.textMuted}}>XP Progress</span><span style={{fontSize:9,color:C.blue,fontWeight:600}}>{xp}/{TOTAL_XP}</span></div><div style={{height:3,background:"rgba(255,255,255,0.06)",borderRadius:9,overflow:"hidden"}}><div style={{height:3,width:`${Math.min(100,(xp/TOTAL_XP)*100)}%`,background:C.grad1,borderRadius:9,transition:"width .5s"}}/></div></div>
+          <div onClick={()=>setScreen("profile")} style={{padding:"7px 13px 13px",cursor:"pointer",display:"flex",alignItems:"center",gap:9}}>
+            <div style={{width:28,height:28,borderRadius:7,flexShrink:0,background:C.grad1,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:SORA,fontSize:12,fontWeight:800,color:"#fff"}}>{user?.name?.[0]?.toUpperCase()}</div>
+            <div style={{flex:1,overflow:"hidden"}}><div style={{fontSize:11,fontWeight:600,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.name}</div><div style={{fontSize:9,color:C.textMuted}}>Business Profile</div></div>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.textMuted} strokeWidth="2"><polyline points="9,18 15,12 9,6"/></svg>
+          </div>
+        </div>
+      </div>
+      {/* MAIN */}
+      <div style={{flex:1,marginLeft:215,overflowY:"auto",minHeight:"100vh"}}>
+        <div style={{padding:"26px 28px",maxWidth:1060,margin:"0 auto"}}>
+          {screen==="dashboard" && <Dashboard user={user} progress={progress} xp={xp} onModule={goModule} onNav={id=>setScreen(id)}/>}
+          {screen==="media"     && <MediaLibrary/>}
+          {screen==="kit"       && <EntrepreneurKit/>}
+          {screen==="prompts"   && <PromptStudio/>}
+          {screen==="journal"   && <Journal/>}
+          {screen==="calc"      && <Calculator/>}
+          {screen==="reports"   && <ReportGenerator/>}
+          {screen==="profile"   && <BusinessProfile user={user} progress={progress} xp={xp}/>}
+          {screen==="tools"     && <ToolsDir/>}
+          {screen==="lesson"    && activeMod && <LessonViewer module={activeMod} lessonIdx={lessonIdx} onBack={()=>setScreen("dashboard")} onNext={goNext} onPrev={goPrev}/>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// simple tools screen inline
+function ToolsDir(){
+  const tools=[{name:"ChatGPT",icon:"💬",color:"#10A37F",desc:"Best all-round AI for writing, strategy & analysis",url:"https://chat.openai.com",price:"Free/$20",badge:"🔥 Most Popular"},{name:"Claude",icon:"🧩",color:"#CC785C",desc:"Best for long documents & nuanced analysis",url:"https://claude.ai",price:"Free/$20",badge:"🧠 Deepest Thinker"},{name:"Canva AI",icon:"🎨",color:"#00C4CC",desc:"Design anything in minutes — no skills needed",url:"https://canva.com",price:"Free/$15",badge:"🎨 Visual King"},{name:"Perplexity",icon:"🔍",color:"#5B4FCF",desc:"Real-time research with live citations",url:"https://perplexity.ai",price:"Free/$20",badge:"🌐 Live Internet"},{name:"Gemini",icon:"✨",color:"#4285F4",desc:"Google's AI — native inside Docs, Gmail & Sheets",url:"https://gemini.google.com",price:"Free/$20",badge:"🔗 Best Integration"},{name:"Notion AI",icon:"📓",color:"#fff",desc:"AI that knows your company documents",url:"https://notion.so",price:"$10/mo add-on",badge:"🧠 Company Brain"},{name:"Zapier",icon:"⚡",color:"#FF4A00",desc:"Connect 7,000+ apps — no code needed",url:"https://zapier.com",price:"Free/$19+",badge:"⚡ Automation King"},{name:"ElevenLabs",icon:"🎤",color:"#F59E0B",desc:"Best-in-class AI voice cloning",url:"https://elevenlabs.io",price:"Free/$5+",badge:"🎙️ Voice Master"},{name:"Midjourney",icon:"🖼️",color:"#5B4FCF",desc:"Best AI image generation",url:"https://midjourney.com",price:"$10–60/mo",badge:"🎨 Image Leader"},{name:"HeyGen",icon:"👤",color:"#EC4899",desc:"Professional AI avatar videos from text",url:"https://heygen.com",price:"$29+/mo",badge:"🎬 Video Avatar"}];
+  return(<div><div style={{marginBottom:20}}><h2 style={{fontFamily:SORA,fontSize:22,fontWeight:800,color:C.text,marginBottom:4}}>🌐 AI Tools Guide</h2><p style={{fontSize:14,color:C.textSub}}>Top 10 AI tools for business</p></div><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:12}}>{tools.map(t=>(<div key={t.name} style={{padding:16,borderRadius:14,background:C.bgCard,border:`1px solid ${C.border}`,transition:"all .2s"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=t.color+"55";}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;}}><div style={{display:"flex",alignItems:"center",gap:11,marginBottom:9}}><span style={{fontSize:26}}>{t.icon}</span><div><div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}><span style={{fontSize:13,fontWeight:700,color:C.text,fontFamily:SORA}}>{t.name}</span><span style={{fontSize:9,padding:"2px 6px",borderRadius:5,background:t.color+"22",color:t.color,fontWeight:700}}>{t.badge}</span></div><span style={{fontSize:11,color:C.green,fontWeight:600}}>{t.price}</span></div></div><p style={{fontSize:12,color:C.textSub,lineHeight:1.6,marginBottom:10}}>{t.desc}</p><a href={t.url} target="_blank" rel="noopener noreferrer" style={{display:"inline-block",padding:"5px 12px",borderRadius:7,background:t.color+"22",color:t.color,fontSize:11,fontWeight:700}}>Open {t.name} ↗</a></div>))}</div></div>);
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
